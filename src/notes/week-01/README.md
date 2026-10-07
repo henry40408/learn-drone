@@ -40,6 +40,29 @@
 - 判斷是否在空中，要看 `EXTENDED_SYS_STATE.landed_state` 與馬達輸出，不能只看單一高度數字。
 - Stabilize 懸停時沒有定高；用 pymavlink 切 Land（模式編號 9）後，3 公尺約 15 秒平穩降到 0。
 
+## 實驗：有風時比較 AltHold、Loiter、Stabilize
+
+腳本：`scripts/w1_modes.py`（先執行 `scripts/sitl.sh`，QGC 用來觀察）。流程：Guided 起飛到 10 m → 開風 5 m/s → 用 RC override 把搖桿全放中間（油門 1500）→ 依序切模式，每秒記錄。
+
+| 模式 | 高度 | 水平漂移 | 解讀 |
+|---|---|---|---|
+| AltHold（15 秒） | 穩在 10.0 m | 22.7 m，持續增加 | 只顧高度，位置被風帶走 |
+| Loiter（15 秒） | 穩在 10.0 m | 約 1.6 m，起初被推 1.4 m 後釘住 | 靠 GPS 把位置拉回來 |
+| Stabilize（10 秒） | 慢慢升到 11.4 m | 11.9 m | 高度、位置都不管；油門 1500 略高於懸停油門，所以往上爬 |
+
+![QGC 畫面：紅線是無人機被風吹離 Home 的軌跡，右下角顯示離 Home 39.6 m；左側 Vehicle Messages 可看到開機到解鎖、降落的完整訊息](images/qgc-wind-drift.png)
+
+QGC 截圖（降落後）：紅線從 Home（綠色圖示）一路延伸到左側，離 Home 39.6 m，是 AltHold 與 Stabilize 兩段被風吹走的累積結果。左側 Vehicle Messages 的紅字 `Arm: Throttle (RC3) is not neutral` 就是解鎖被拒絕的訊息。
+
+### 實驗中學到的
+
+- **手控模式會讀虛擬遙控器**：SITL 預設油門 1000（最低）。切到 AltHold 若沒人撥油門，會被當成「油門拉到底」而降落，看起來像墜毀，其實不是。Guided 不讀遙控器，所以起飛時沒事。
+- **RC override 必須持續發送**（約 10 Hz），否則飛控視為遙控器斷線。
+- **解鎖被拒絕**：`Arm: Throttle (RC3) is not neutral`，油門 1000 或 1500 都一樣。QGC 的 Takeoff 用強制解鎖（`MAV_CMD_COMPONENT_ARM_DISARM` 的 param2 = 21196）繞過，腳本照做；只適合模擬，實機不要用。
+- **腳本要檢查結果**：第一版沒檢查解鎖是否成功、也沒有逾時，被拒絕後就一直空等；現在會檢查 `COMMAND_ACK` 並設 30 秒逾時。
+- **輸出被緩衝**：背景或管線執行 Python 時要加 `-u`，否則看不到進度。
+- QGC Takeoff 的預設高度只有 3 m，不是 10 m。
+
 ## 卡在哪
 
 - 容易搞混的詞：

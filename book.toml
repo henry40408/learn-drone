@@ -6,3 +6,4 @@ src = "src"
 
 [output.html]
 git-repository-url = "https://github.com/henry40408/learn-drone"
+additional-js = ["external-links.js"]

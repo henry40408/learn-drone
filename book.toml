@@ -1,6 +1,8 @@
 [book]
 title = "無人機自學筆記"
 language = "zh-TW"
+authors = ["Heng-Yi Wu"]
 src = "src"
 
 [output.html]
+git-repository-url = "https://github.com/henry40408/learn-drone"

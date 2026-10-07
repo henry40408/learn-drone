@@ -23,3 +23,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 開發機是 arm64 macOS：ArduPilot SITL 可原生執行；Gazebo 與 PX4 較不穩，需用 Docker 或 Linux VM
 - 內容語言為繁體中文（台灣用語）
+
+## 模擬環境
+
+- `scripts/sitl.sh`：啟動 ArduCopter SITL 並轉送 MAVLink 到 UDP 14550（QGC）；程式可直接連 `tcp:127.0.0.1:5762`
+- 所有軟體都在 `vendor/`（gitignore），不得裝到家目錄或系統目錄；用 `vendor/venv/bin/python` 執行 pymavlink
+- `vendor/ardupilot` 有一處本地修改（`AP_FWVersion.h` 在 Apple 平台不用 `PACKED`），重新 clone 後需重做，細節見 `src/notes/week-03/README.md`

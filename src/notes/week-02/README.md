@@ -243,3 +243,8 @@ QGC 的 Analyze Tools → MAVLink Inspector：
 需要加強：實作中的細節（第 3、4 題）沒有留下印象，回頭看「實作：開雜訊」那節的圖與「踩到的坑」。
 
 ## 下週問題
+
+- W4：我對 `RAW_IMU` 要求 20 Hz，QGC 的 MAVLink Inspector 卻顯示 4 Hz；誰決定實際速率？多個連線要的速率會互相覆蓋嗎？
+- W4：`COMMAND_ACK` 的 `result` 有哪些值？（實測：0 = 成功；對已在空中的無人機下 takeoff 得到 4）
+- W4：TCP 連線不讀封包就卡住整個 SITL，MAVLink 本身有沒有流量控制，還是只能自己持續讀？
+- W4：訊息欄位的單位為什麼這麼雜（毫 g、毫弧度／秒、經緯度 ×1e7、公分）？去哪查？

@@ -72,7 +72,7 @@
 
 1. 在 SITL 靜止時，用 pymavlink 讀 `RAW_IMU`、`SCALED_PRESSURE`、`GPS_RAW_INT`，印出原始感測器值
 2. 再讀 `ATTITUDE`，比較原始值與 EKF 估算結果
-3. 觀察 IMU 靜止時的雜訊大小
+3. 觀察 IMU 靜止時的雜訊大小（結果見「學到什麼」）
 
 ## 學到什麼
 
@@ -142,6 +142,46 @@ X 軸是時間（秒），Y 軸是高度（公尺），只畫 10 m 附近（前�
 - 反應速度排序：D 最快（立刻），P 次之，I 最慢（要累積）。
 
 注意：前一張圖（升到 10 m）的模擬把積分上限設為 ±1，I 項在起飛後 0.1 秒就頂到上限 0.5，剛好等於所需的懸停推力，所以看不出「慢慢累積」；這張圖把上限放寬到 ±2，並用「載重改變」這個情境，才看得到 I 逐步累積。程式：`scripts/pid_terms.py`，用法 `vendor/venv/bin/python -I scripts/pid_terms.py <輸出.png>`。
+
+### 實作：讀原始感測器值
+
+腳本 `scripts/w2_sensors.py`（先執行 `scripts/sitl.sh`）：SITL 靜止時各取 50 筆。
+
+| 感測器 | 讀到的值 | 意思 |
+|---|---|---|
+| 陀螺儀 | 三軸約 0.001 rad/s | 沒在轉 |
+| 加速度計 | x、y = 0；z = −9.815 m/s² | 只剩重力，方向向下 |
+| 氣壓計 | 945.0 hPa、31.1 °C | 約 584 m 海拔的氣壓 |
+| GPS | 10 顆衛星，緯度 −35.363262、經度 149.165237 | SITL 預設位置 |
+| EKF 姿態 | roll 0.07°、pitch 0.06°、yaw −5.8° | 幾乎水平 |
+
+- 預設的 SITL 感測器幾乎沒有雜訊（加速度計 z 標準差 0.003 m/s²），看不出 EKF 的作用。
+- GPS `fix_type` 回報 6（RTK 固定解），是 SITL 的模擬值；真實 GPS 通常是 3（3D 定位）。
+
+### 實作：開雜訊，比較原始值與 EKF
+
+腳本 `scripts/w2_noise.py`：起飛到 10 m 懸停，開啟模擬的 IMU 振動，比較「只用加速度計算的 roll」與 EKF 估算的 roll。加 `--hold` 則帶著雜訊一直懸停，給 QGC 觀察，Ctrl-C 結束並降落。
+
+| | 只用加速度計算 roll | EKF 估算 roll |
+|---|---|---|
+| 標準差（較小雜訊） | 0.166° | 0.044° |
+
+![QGC MAVLink Inspector：上圖是 RAW_IMU 的 xacc、yacc、zacc（原始值，鋸齒狀抖動）；下圖是 ATTITUDE 的 roll、pitch（EKF 估算，平滑）](images/qgc-imu-vs-ekf.png)
+
+QGC 的 Analyze Tools → MAVLink Inspector：
+
+- 上圖：`RAW_IMU` 的 xacc、yacc 約 ±150 mG（單位是毫 g，1000 mG = 1 g），zacc 在 −1000 mG（重力）附近抖。若單看加速度計，相當於機身傾斜約 ±8°。
+- 下圖：`ATTITUDE` 的 roll、pitch 約 ±0.003 rad（約 ±0.2°），是平滑的慢波。
+- 機身其實幾乎沒動，晃的只是馬達振動；EKF 靠陀螺儀（短時間準）把振動過濾掉，大約縮小到 1/40。這就是「融合」的實例。
+- 兩張圖單位不同（mG vs 弧度），要換算才能比；QGC 只以 3～10 Hz 顯示，而振動是 50～70 Hz，所以鋸齒的形狀是取樣造成的，只看抖動幅度。
+
+**踩到的坑**：
+
+- 參數名稱是 `SIM_ACC1_RND`、`SIM_GYR1_RND`（含 IMU 編號），不是 `SIM_ACC_RND`；先查原始碼 `libraries/SITL/SITL.cpp` 確認。
+- 雜訊只在馬達轉動時才有，必須在空中懸停；陀螺儀雜訊還會乘上油門。
+- 加速度計的雜訊要 `SIM_VIB_FREQ_X/Y/Z` 非 0 才會加進去；只開 `ACC1_RND` 沒有效果。
+- SITL 的 TCP 連線**如果不讀封包，緩衝區塞滿後會卡住整個模擬**（SITL CPU 掉到 1%，QGC 所有訊息變 0 Hz）。懸停等待時也要持續 `recv_match()`。
+- 腳本用 `MAV_CMD_DO_SET_MODE` 切 Land；結束時一定要把 `SIM_*` 參數歸零。
 
 ### 姿態控制頁面的圖看不懂是正常的
 

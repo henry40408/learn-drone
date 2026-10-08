@@ -38,8 +38,8 @@
 
 1. 用 pymavlink 持續接收 `ATTITUDE` 與 `GLOBAL_POSITION_INT`，印出頻率與值（腳本：[`scripts/w4_telemetry.py`](../../appendix/scripts/w4_telemetry.md)）
 2. 比較 `REQUEST_DATA_STREAM` 與 `SET_MESSAGE_INTERVAL` 實際得到的速率（腳本：[`scripts/w4_rates.py`](../../appendix/scripts/w4_rates.md)）
-3. 同時開兩個程式，分別連 5762 與 5763（W3 留下的問題：5760 只允許一個連線時，多個程式怎麼同時連？）
-4. 停掉 SITL，觀察 `HEARTBEAT` 斷線時程式怎麼偵測（逾時）
+3. 同時開兩個程式，分別連 5762 與 5763（W3 留下的問題：5760 只允許一個連線時，多個程式怎麼同時連？）（腳本：[`scripts/w4_two_ports.py`](../../appendix/scripts/w4_two_ports.md)）
+4. 停掉 SITL，觀察 `HEARTBEAT` 斷線時程式怎麼偵測（逾時）（腳本：[`scripts/w4_heartbeat.py`](../../appendix/scripts/w4_heartbeat.md)）
 5. （額外）有要求但暫停讀取、或沒要求時，資料會被丟掉還是堆積？（腳本：[`scripts/w4_backlog.py`](../../appendix/scripts/w4_backlog.md)）
 6. （額外）`REQUEST_MESSAGE` 只要一次，實際行為是什麼？（腳本：[`scripts/w4_request_message.py`](../../appendix/scripts/w4_request_message.md)）
 
@@ -87,8 +87,43 @@ MAVLink 像一條**雙向長連線（WebSocket）**，上面混著兩種流量�
 - **後下的指令蓋過先前的**（階段 3：ATTITUDE 從 22.5 掉到 11.2），沒有取較大值或合併。要精準控制單一訊息，用 `SET_MESSAGE_INTERVAL`。
 - **設定留在 SITL 的連接埠上，斷線重連也不會消失**：沒重設就重跑，階段 0 會殘留上次的速率。重設方法：`REQUEST_DATA_STREAM` 的 `MAV_DATA_STREAM_ALL` 速率設 0，並把各訊息的 `SET_MESSAGE_INTERVAL` 設 0（還原預設）。階段 0 仍有約 0.2 Hz（4 秒 1 筆），推測是重設瞬間漏出的訊息，沒有進一步確認。
 - **JS 類比**：飛控內部有一張「訊息 → 送出間隔」的 `Map`，每個連接埠一份；`SET_MESSAGE_INTERVAL` 是 `map.set(key, v)`，`REQUEST_DATA_STREAM` 是對整組 key 迴圈 `set`；後寫的贏，而且狀態存在 server 端，不是 socket 上。
-- **實測略高於設定**（4 → 4.5、20 → 22.5）：原因未確認，可能是 4 秒視窗的邊界誤差，也可能是排程取整。
+- **`ATTITUDE` 實測比設定高約 12%**（4 → 4.5、10 → 11.2、20 → 22.5，實作 3 的 5 → 5.7～6.0 也一樣）：原因未確認。已排除兩件事：不是 SITL 時鐘比真實時間快（飛控時間與牆鐘的比值是 1.000），也不是全部訊息都這樣（`SYSTEM_TIME` 要 10 Hz，實測約 10.2 Hz）。所以是 `ATTITUDE` 這類訊息的送出排程造成的，細節沒有再追。
 - **`LOCAL_POSITION_NED` 在 SITL 剛開機時是 0**，放了一陣子後才出現（階段 4 的 2.0 Hz）。推測是 EKF 還沒有位置原點，但沒有直接檢查 EKF 狀態，只是佐證。實驗前先讓 SITL 開一陣子。
+
+### 實作 3：同時連 5762 與 5763
+
+同一個程式開兩條連線（A 連 5762、B 連 5763；對 SITL 來說就是兩個 TCP 連線，效果等同兩個程式），各自設定 `ATTITUDE` 的速率，同時讀取：
+
+| 階段 | A（5762） | B（5763） | ACK |
+|---|---|---|---|
+| 0. 都沒要求 | 0 | 0 | 各 1 個（是重設指令的回應，晚到） |
+| 1. A 要 20 Hz | 23.0 | 0 | 只有 A 收到 |
+| 2. B 再要 5 Hz | 23.7 | 5.7 | 只有 B 收到 |
+| 3. A 改成 2 Hz | 2.0 | 6.0 | 只有 A 收到 |
+| 4. B 停止 | 2.3 | 0 | 只有 B 收到 |
+
+- **每個連接埠各有一份速率設定**：A 改速率不影響 B（階段 3），B 停止也不影響 A（階段 4）。實作 2 的「後下的蓋過先前的」只在同一個連接埠內成立。這也回答了 W2 的問題：QGC 走另一個連接埠，所以我要 20 Hz，QGC 顯示 4 Hz 是它自己的設定，不是被我蓋掉（QGC 一側的實際原因沒有驗證）。
+- **`COMMAND_ACK` 只回給下指令的那條連線**：另一條連線不會收到，所以前面「ACK 混在遙測裡」只需要過濾自己這條連線。
+- **同一個連接埠只服務一個客戶端**：A 佔著 5762 時，第二次連 5762 沒有收到 `HEARTBEAT`（TCP 連得上，但沒有資料）；5760 被 MAVProxy 佔用，連 5760 也一樣。
+- **回答 W3 的問題**：5760 被 MAVProxy 用了，你的程式各自連 5762、5763，一個埠一個程式；需要更多就要用 MAVProxy 的 `--out` 轉送出更多埠（UDP），這個沒有實測。
+- **JS 類比**：每個連接埠像一個獨立的 server instance，各有自己的訂閱表，每個只接受一個 client；不是同一個 server 上的多個 session 共用一份狀態。
+
+### 實作 4：`HEARTBEAT` 斷線偵測
+
+偵測方法：超過 3 秒（`TIMEOUT`）沒收到飛控的 `HEARTBEAT` 就判定斷線。用兩種方式讓飛控「消失」：
+
+| 方式 | 做法 | 觀察 |
+|---|---|---|
+| **凍結** | 5 秒時 `SIGSTOP` 暫停 `arducopter`，13 秒時 `SIGCONT` 恢復 | TCP 連線還在，只是沒資料；暫停後 2.5–3 秒判定斷線；恢復後約 0.3 秒就收到下一個 `HEARTBEAT`，不用重連，也沒有補送一堆 `HEARTBEAT` |
+| **殺掉** | 5 秒時 `SIGKILL` | TCP 連線被關閉；同樣在暫停後約 3 秒由逾時判定斷線 |
+
+- **斷線偵測只能靠逾時**。`recv_match` 沒資料時回傳 `None`，跟「連線已經關閉」回傳的結果一樣，單看回傳值分不出來。偵測延遲介於 `TIMEOUT − 1` 到 `TIMEOUT` 秒之間（取決於斷線時離上次 `HEARTBEAT` 多久）。
+- **凍結比殺掉難偵測**：凍結時 TCP 看起來一切正常（沒有 EOF、沒有錯誤），只有逾時能發現；殺掉至少連線層會知道。
+- **連線關閉後 pymavlink 會空轉**：`recv_match(blocking=True, timeout=0.5)` 不再阻塞，10 秒內狂印了約 290 萬行 `EOF on TCP socket`、吃滿一顆 CPU。實務上偵測到斷線後要立刻關掉連線或停止迴圈，不能繼續呼叫 `recv_match`。
+- **連線上有兩個 `HEARTBEAT` 來源**：飛控（system 1，type 2 = 四旋翼）和一個 GCS（system 255，type 6），各約 1 Hz。GCS 那個推測是 MAVProxy 發的、由飛控轉送到這個埠（凍結期間它也跟著消失，支持這個推測，但沒有直接確認來源）。**偵測斷線要過濾掉 GCS 的**，否則只要地面站活著，就可能讓你誤判飛控還活著。
+- **凍結恢復後的 `HEARTBEAT` 爆量，是 GCS 的、不是飛控的**：未過濾時，恢復後 1 秒內收到 9 個；過濾後飛控自己只有 1 個，GCS 的約 8 個。這 8 個是 MAVProxy 在凍結的 8 秒裡送給飛控、堆在緩衝區裡的，飛控恢復後一次讀完再轉送出來；飛控自己的 `HEARTBEAT` 在凍結時根本沒有產生，所以不會補送。這正好呼應實作 5：**沒產生的不會補，已經送出但沒人讀的會堆積**。
+- **JS 類比**：WebSocket 的 ping / pong 逾時。網路層沒掉時（凍結），`onclose` 不會觸發，只能靠應用層心跳；掉了（殺掉）會收到 `onclose`，pymavlink 卻不會告訴你，只會空轉。
+- **沒釐清的**：`w4_telemetry.py` 印出 `component=0`，可能跟 `wait_heartbeat` 先收到哪個 `HEARTBEAT` 有關，沒有確認。
 
 ### 實作 5：沒被讀取的資料去哪了
 

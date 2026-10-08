@@ -32,6 +32,8 @@
   - [`w2_noise.py`](appendix/scripts/w2_noise.md)
   - [`w2_sensors.py`](appendix/scripts/w2_sensors.md)
   - [`w4_backlog.py`](appendix/scripts/w4_backlog.md)
+  - [`w4_heartbeat.py`](appendix/scripts/w4_heartbeat.md)
   - [`w4_rates.py`](appendix/scripts/w4_rates.md)
   - [`w4_request_message.py`](appendix/scripts/w4_request_message.md)
+  - [`w4_two_ports.py`](appendix/scripts/w4_two_ports.md)
   - [`w4_telemetry.py`](appendix/scripts/w4_telemetry.md)

@@ -10,6 +10,8 @@
 - [`w2_noise.py`](scripts/w2_noise.md)：W2 實驗：開啟模擬的 IMU 震動雜訊，比較原始值與 EKF 估算。
 - [`w2_sensors.py`](scripts/w2_sensors.md)：W2 實作：讀 SITL 靜止時的原始感測器值，與 EKF 估算的姿態比較。
 - [`w4_backlog.py`](scripts/w4_backlog.md)：W4 實驗：沒被讀取的資料會被丟掉，還是下次讀取時一次收到？
+- [`w4_heartbeat.py`](scripts/w4_heartbeat.md)：W4 實驗 4：HEARTBEAT 斷線偵測。
 - [`w4_rates.py`](scripts/w4_rates.md)：W4 實驗 2：比較 REQUEST_DATA_STREAM 與 SET_MESSAGE_INTERVAL 實際得到的速率。
 - [`w4_request_message.py`](scripts/w4_request_message.md)：W4 實驗：REQUEST_MESSAGE（指令 512）只要一次，不會持續推送。
+- [`w4_two_ports.py`](scripts/w4_two_ports.md)：W4 實驗 3：同時連 5762 與 5763，看速率設定是各自一份還是共用，以及同一個埠能不能連兩次。
 - [`w4_telemetry.py`](scripts/w4_telemetry.md)：W4 實驗 1：持續接收 ATTITUDE 與 GLOBAL_POSITION_INT，每秒印出實際頻率與最新值。

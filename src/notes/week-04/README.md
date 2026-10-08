@@ -13,7 +13,7 @@
 4. **下指令用 `COMMAND_LONG`，結果看 `COMMAND_ACK`**：W1 的強制解鎖、W2 的起飛都是這條路。
 5. **常見訊息**：`ATTITUDE`、`GLOBAL_POSITION_INT`、`LOCAL_POSITION_NED`、`GPS_RAW_INT`、`SYS_STATUS`、`EXTENDED_SYS_STATE`。W1、W2 已經碰過其中幾個。
 6. **連線埠**：SITL 的 5760／5762／5763 各自獨立；QGC 走 MAVProxy 轉送的 UDP 14550。
-7. **實務**：連線要持續讀取，否則 SITL 會被卡住（W2 踩過）。有要求但沒讀的資料不會被丟掉，會堆在緩衝區，恢復讀取時一次收到舊資料（見「學到什麼」的實作 5）。
+7. **實務**：連線要持續讀取，否則 SITL 會被卡住（W2 踩過；本週只堆了約 4 KB，沒重現卡住）。有要求但沒讀的資料不會被丟掉，會堆在緩衝區，恢復讀取時一次收到舊資料（見「學到什麼」的實作 5）。
 
 ### 可以跳過
 
@@ -39,7 +39,7 @@
 1. 用 pymavlink 持續接收 `ATTITUDE` 與 `GLOBAL_POSITION_INT`，印出頻率與值（腳本：[`scripts/w4_telemetry.py`](../../appendix/scripts/w4_telemetry.md)）
 2. 比較 `REQUEST_DATA_STREAM` 與 `SET_MESSAGE_INTERVAL` 實際得到的速率（腳本：[`scripts/w4_rates.py`](../../appendix/scripts/w4_rates.md)）
 3. 同時開兩個程式，分別連 5762 與 5763（W3 留下的問題：5760 只允許一個連線時，多個程式怎麼同時連？）（腳本：[`scripts/w4_two_ports.py`](../../appendix/scripts/w4_two_ports.md)）
-4. 停掉 SITL，觀察 `HEARTBEAT` 斷線時程式怎麼偵測（逾時）（腳本：[`scripts/w4_heartbeat.py`](../../appendix/scripts/w4_heartbeat.md)）
+4. 暫停（SIGSTOP）或殺掉 SITL，觀察 `HEARTBEAT` 斷線時程式怎麼偵測（逾時）（腳本：[`scripts/w4_heartbeat.py`](../../appendix/scripts/w4_heartbeat.md)）
 5. （額外）有要求但暫停讀取、或沒要求時，資料會被丟掉還是堆積？（腳本：[`scripts/w4_backlog.py`](../../appendix/scripts/w4_backlog.md)）
 6. （額外）`REQUEST_MESSAGE` 只要一次，實際行為是什麼？（腳本：[`scripts/w4_request_message.py`](../../appendix/scripts/w4_request_message.md)）
 

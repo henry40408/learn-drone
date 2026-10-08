@@ -7,7 +7,7 @@
 ## 約束
 
 - 預算 ≈ 0，不買硬體，全部在模擬中完成
-- 環境：macOS（Apple Silicon 與否待確認）；Gazebo/PX4 在 macOS 較不穩，必要時改用 Docker 或 Linux VM
+- 環境：macOS（arm64 Apple Silicon）；Gazebo/PX4 在 macOS 較不穩，必要時改用 Docker 或 Linux VM
 - 每週 5–8 小時；每週結束留一份筆記到 `notes/week-NN/`
 
 ## 工具選擇
@@ -68,7 +68,7 @@
 ## 進度
 
 - [x] 階段 1（W1–3）：W1 飛行原理、W2 飛控架構（含 4 輪測驗與實作）、W3 環境建置皆完成
-- [ ] 階段 2（W4–6）
+- [ ] 階段 2（W4–6）：W4 MAVLink 協定完成（實作 1–6）
 - [ ] 階段 3（W7–9）
 - [ ] 階段 4（W10–12）
 

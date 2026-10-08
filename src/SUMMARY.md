@@ -35,5 +35,5 @@
   - [`w4_heartbeat.py`](appendix/scripts/w4_heartbeat.md)
   - [`w4_rates.py`](appendix/scripts/w4_rates.md)
   - [`w4_request_message.py`](appendix/scripts/w4_request_message.md)
-  - [`w4_two_ports.py`](appendix/scripts/w4_two_ports.md)
   - [`w4_telemetry.py`](appendix/scripts/w4_telemetry.md)
+  - [`w4_two_ports.py`](appendix/scripts/w4_two_ports.md)

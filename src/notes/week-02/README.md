@@ -120,7 +120,7 @@ X 軸是時間（秒），Y 軸是高度（公尺），只畫 10 m 附近（前�
 
 **為什麼是 9.5 m**：模型中懸停需要 50% 推力，P 的規則是「推力 = KP × 誤差」，KP = 1。穩定時推力要等於重力，所以 `1 × 誤差 = 0.5`，誤差 = 0.5 m，停在 10 − 0.5 = 9.5 m。9.5 這個數字沒有特殊意義，是 `0.5 ÷ KP` 的結果（KP = 2 → 9.75 m，KP = 10 → 9.95 m）；有意義的是「一定會有非零誤差」，這就是需要 I 項的原因。
 
-假設與限制：這是自己寫的一維簡化模型（懸停推力 50%、有空氣阻力），不是 ArduPilot 的真實控制器；增益 P = 1、I = 0.5、D = 1.2 是為了讓三種行為都看得清楚而挑的。程式：`scripts/pid_demo.py`，用法 `vendor/venv/bin/python -I scripts/pid_demo.py <輸出.png>`，可自行改 `KP`、`KI`、`KD` 觀察。
+假設與限制：這是自己寫的一維簡化模型（懸停推力 50%、有空氣阻力），不是 ArduPilot 的真實控制器；增益 P = 1、I = 0.5、D = 1.2 是為了讓三種行為都看得清楚而挑的。程式：[`scripts/pid_demo.py`](../../appendix/scripts/pid_demo.md)，用法 `vendor/venv/bin/python -I scripts/pid_demo.py <輸出.png>`，可自行改 `KP`、`KI`、`KD` 觀察。
 
 ### 用模擬看 P、I、D 的數字怎麼變：0 → 9.5 → 10 m
 
@@ -149,7 +149,7 @@ X 軸是時間（秒），Y 軸是高度（公尺），只畫 10 m 附近（前�
 注意：
 
 - 這張圖的積分上限是 ±1，I 在起飛 0.1 秒就頂到 0.5 的上限，所以看不到「9.5 → 10 m 之間 I 慢慢爬升」；想看 I 慢慢累積，見下一張圖（上限放寬到 ±2、情境改成載重改變）。
-- 這是簡化模型，不是 ArduPilot 的真實數字。程式：`scripts/pid_climb.py`，用法 `vendor/venv/bin/python -I scripts/pid_climb.py <輸出.png>`。
+- 這是簡化模型，不是 ArduPilot 的真實數字。程式：[`scripts/pid_climb.py`](../../appendix/scripts/pid_climb.md)，用法 `vendor/venv/bin/python -I scripts/pid_climb.py <輸出.png>`。
 
 ### 用模擬看 I「累積」是什麼意思
 
@@ -170,11 +170,11 @@ X 軸是時間（秒），Y 軸是高度（公尺），只畫 10 m 附近（前�
 - 這就是 W2「PID 一直都在運作、沒有介入時間點」的實際樣子：三條線從頭到尾都在算，只是各自的份量不同。
 - 反應速度排序：D 最快（立刻），P 次之，I 最慢（要累積）。
 
-注意：前一張圖（升到 10 m）的模擬把積分上限設為 ±1，I 項在起飛後 0.1 秒就頂到上限 0.5，剛好等於所需的懸停推力，所以看不出「慢慢累積」；這張圖把上限放寬到 ±2，並用「載重改變」這個情境，才看得到 I 逐步累積。程式：`scripts/pid_terms.py`，用法 `vendor/venv/bin/python -I scripts/pid_terms.py <輸出.png>`。
+注意：前一張圖（升到 10 m）的模擬把積分上限設為 ±1，I 項在起飛後 0.1 秒就頂到上限 0.5，剛好等於所需的懸停推力，所以看不出「慢慢累積」；這張圖把上限放寬到 ±2，並用「載重改變」這個情境，才看得到 I 逐步累積。程式：[`scripts/pid_terms.py`](../../appendix/scripts/pid_terms.md)，用法 `vendor/venv/bin/python -I scripts/pid_terms.py <輸出.png>`。
 
 ### 實作：讀原始感測器值
 
-腳本 `scripts/w2_sensors.py`（先執行 `scripts/sitl.sh`）：SITL 靜止時各取 50 筆。
+腳本 [`scripts/w2_sensors.py`](../../appendix/scripts/w2_sensors.md)（先執行 [`scripts/sitl.sh`](../../appendix/scripts/sitl.md)）：SITL 靜止時各取 50 筆。
 
 | 感測器 | 讀到的值 | 意思 |
 |---|---|---|
@@ -189,7 +189,7 @@ X 軸是時間（秒），Y 軸是高度（公尺），只畫 10 m 附近（前�
 
 ### 實作：開雜訊，比較原始值與 EKF
 
-腳本 `scripts/w2_noise.py`：起飛到 10 m 懸停，開啟模擬的 IMU 振動，比較「只用加速度計算的 roll」與 EKF 估算的 roll。加 `--hold` 則帶著雜訊一直懸停，給 QGC 觀察，Ctrl-C 結束並降落。
+腳本 [`scripts/w2_noise.py`](../../appendix/scripts/w2_noise.md)：起飛到 10 m 懸停，開啟模擬的 IMU 振動，比較「只用加速度計算的 roll」與 EKF 估算的 roll。加 `--hold` 則帶著雜訊一直懸停，給 QGC 觀察，Ctrl-C 結束並降落。
 
 | | 只用加速度計算 roll | EKF 估算 roll |
 |---|---|---|

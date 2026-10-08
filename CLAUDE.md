@@ -17,6 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/SUMMARY.md` 是目錄，新增章節或頁面時必須同步登記，否則不會出現在書中
 - `src/PLAN.md`：12 週路線圖與工具選擇，是整個專案的依據
 - `src/notes/week-NN/README.md`：每週筆記，固定三節（學到什麼／卡在哪／下週問題）；週次主題與 `PLAN.md` 的 W1–W12 一一對應
+- `src/appendix/`：附錄，每個 `scripts/*` 一頁（`appendix/scripts/<name>.md`，用 `{{#include}}` 引入原始檔）；新增腳本時要補一頁、登記到 `SUMMARY.md`，並在筆記裡連過去
 - `src/projects/`：三個階段性專案（`waypoint-mission` W6、`aruco-landing` W9、`final` W12），總覽在 `README.md`
 
 ## 環境注意
@@ -29,3 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `scripts/sitl.sh`：啟動 ArduCopter SITL 並轉送 MAVLink 到 UDP 14550（QGC）；程式可直接連 `tcp:127.0.0.1:5762`
 - 所有軟體都在 `vendor/`（gitignore），不得裝到家目錄或系統目錄；用 `vendor/venv/bin/python` 執行 pymavlink
 - `vendor/ardupilot` 有一處本地修改（`AP_FWVersion.h` 在 Apple 平台不用 `PACKED`），重新 clone 後需重做，細節見 `src/notes/week-03/README.md`
+
+## 腳本慣例
+
+- 變數可以簡寫，但要在定義處加註解說明意思與單位

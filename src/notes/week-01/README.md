@@ -42,7 +42,7 @@
 
 ## 實驗：有風時比較 AltHold、Loiter、Stabilize
 
-腳本：`scripts/w1_modes.py`（先執行 `scripts/sitl.sh`，QGC 用來觀察）。流程：Guided 起飛到 10 m → 開風 5 m/s → 用 RC override 把搖桿全放中間（油門 1500）→ 依序切模式，每秒記錄。
+腳本：[`scripts/w1_modes.py`](../../appendix/scripts/w1_modes.md)（先執行 [`scripts/sitl.sh`](../../appendix/scripts/sitl.md)，QGC 用來觀察）。流程：Guided 起飛到 10 m → 開風 5 m/s → 用 RC override 把搖桿全放中間（油門 1500）→ 依序切模式，每秒記錄。
 
 | 模式 | 高度 | 水平漂移 | 解讀 |
 |---|---|---|---|

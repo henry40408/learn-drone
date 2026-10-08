@@ -156,4 +156,19 @@ MAVLink 像一條**雙向長連線（WebSocket）**，上面混著兩種流量�
 
 ## 卡在哪
 
+- **第一次跑 `w4_telemetry.py` 什麼都沒印**：5762 預設只送 `HEARTBEAT`，要先用 `SET_MESSAGE_INTERVAL` 要求才有 `ATTITUDE`。
+- **實驗 2 階段 0 不乾淨**：上次實驗留下的速率表還在（設定存在飛控、斷線不會清），所以每次開頭都要 `reset()`。
+- **`HEARTBEAT` 計數偏高**：GCS（system 255）的 `HEARTBEAT` 也會經飛控轉送到連線上，要用 `type` 過濾。
+- **kill 模式輸出 49 MB**：連線關閉後 pymavlink 空轉狂印 `EOF on TCP socket`，要用 `grep -v` 濾掉。
+- **沒解開的疑問**：
+  - `ATTITUDE` 實測比要求的速率高約 12%（SITL 時鐘比 1.000，原因不明）。
+  - QGC 顯示 4 Hz 的原因。
+  - 緩衝區滿了 SITL 會不會卡住（只堆了約 4 KB，沒測到）。
+  - 剛開機的 SITL 上 `LOCAL_POSITION_NED` 為 0（推測是 EKF 還沒設定原點，未驗證）。
+  - `w4_telemetry.py` 印出 `component=0` 的原因。
+
 ## 下週問題
+
+- W5 Guided 模式：`arm`、`takeoff`、`goto` 各自要送哪個 MAVLink 指令？怎麼確認指令真的被接受、執行完了（`COMMAND_ACK` 之外還要看什麼）？
+- 速度控制（`SET_POSITION_TARGET_*`）的座標系與單位是什麼？
+- 同時有 pymavlink 與 MAVSDK 兩個程式連線時，埠要怎麼分？

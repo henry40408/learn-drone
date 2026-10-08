@@ -36,12 +36,36 @@
 
 ## 實作
 
-1. 用 pymavlink 持續接收 `ATTITUDE` 與 `GLOBAL_POSITION_INT`，印出頻率與值
-2. 比較 `REQUEST_DATA_STREAM` 與 `SET_MESSAGE_INTERVAL` 實際得到的速率
+1. 用 pymavlink 持續接收 `ATTITUDE` 與 `GLOBAL_POSITION_INT`，印出頻率與值（腳本：[`scripts/w4_telemetry.py`](../../appendix/scripts/w4_telemetry.md)）
+2. 比較 `REQUEST_DATA_STREAM` 與 `SET_MESSAGE_INTERVAL` 實際得到的速率（腳本：[`scripts/w4_rates.py`](../../appendix/scripts/w4_rates.md)）
 3. 同時開兩個程式，分別連 5762 與 5763（W3 留下的問題：5760 只允許一個連線時，多個程式怎麼同時連？）
 4. 停掉 SITL，觀察 `HEARTBEAT` 斷線時程式怎麼偵測（逾時）
 
 ## 學到什麼
+
+### 實作 1：不要就不送
+
+連上 5762 後，SITL 重啟後的 4 秒內只收到 5 個 `HEARTBEAT` 和 1 個 `TIMESYNC`，**沒有 `ATTITUDE`、也沒有 `GLOBAL_POSITION_INT`**。要資料必須先「要」。用 `SET_MESSAGE_INTERVAL` 要 `ATTITUDE` 10 Hz、`GLOBAL_POSITION_INT` 5 Hz 後，實測是 10.0 Hz 與 4.0–5.5 Hz。
+
+### 實作 2：兩種要法的行為
+
+同一條連線依序下指令，每階段量 4 秒（每種訊息的 Hz）：
+
+| 階段 | ATTITUDE | GLOBAL_POSITION_INT | LOCAL_POSITION_NED |
+|---|---|---|---|
+| 0. 什麼都不要（先重設） | 0 | 0 | 0 |
+| 1. `DATA_STREAM` EXTRA1 → 4 Hz | 4.5 | 0 | 0 |
+| 2. `DATA_STREAM` EXTRA1 → 20 Hz | 22.5 | 0 | 0 |
+| 3. 再加 `INTERVAL` ATTITUDE → 10 Hz | 11.2 | 0 | 0 |
+| 4. `DATA_STREAM` POSITION → 2 Hz | 11.2 | 2.2 | 2.0 |
+| 5. 再加 `INTERVAL` GLOBAL_POSITION_INT → 10 Hz | 11.5 | 11.2 | 2.5 |
+
+- **`REQUEST_DATA_STREAM` 以群組為單位**：POSITION 一個指令同時帶出 `GLOBAL_POSITION_INT` 和 `LOCAL_POSITION_NED`；`SET_MESSAGE_INTERVAL` 只動單一訊息（階段 5 後 `LOCAL_POSITION_NED` 沒被影響）。
+- **後下的指令蓋過先前的**（階段 3：ATTITUDE 從 22.5 掉到 11.2），沒有取較大值或合併。要精準控制單一訊息，用 `SET_MESSAGE_INTERVAL`。
+- **設定留在 SITL 的連接埠上，斷線重連也不會消失**：沒重設就重跑，階段 0 會殘留上次的速率。重設方法：`REQUEST_DATA_STREAM` 的 `MAV_DATA_STREAM_ALL` 速率設 0，並把各訊息的 `SET_MESSAGE_INTERVAL` 設 0（還原預設）。階段 0 仍有約 0.2 Hz（4 秒 1 筆），推測是重設瞬間漏出的訊息，沒有進一步確認。
+- **JS 類比**：飛控內部有一張「訊息 → 送出間隔」的 `Map`，每個連接埠一份；`SET_MESSAGE_INTERVAL` 是 `map.set(key, v)`，`REQUEST_DATA_STREAM` 是對整組 key 迴圈 `set`；後寫的贏，而且狀態存在 server 端，不是 socket 上。
+- **實測略高於設定**（4 → 4.5、20 → 22.5）：原因未確認，可能是 4 秒視窗的邊界誤差，也可能是排程取整。
+- **`LOCAL_POSITION_NED` 在 SITL 剛開機時是 0**，放了一陣子後才出現（階段 4 的 2.0 Hz）。推測是 EKF 還沒有位置原點，但沒有直接檢查 EKF 狀態，只是佐證。實驗前先讓 SITL 開一陣子。
 
 ## 卡在哪
 

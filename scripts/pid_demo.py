@@ -10,20 +10,24 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# G：重力加速度（m/s²）；DRAG：空氣阻力係數；DT：模擬步長（秒）；T_END：模擬總時間（秒）；TARGET：目標高度（m）
 G, DRAG, DT, T_END, TARGET = 9.8, 3.0, 0.01, 15.0, 10.0
 T_START = 2.5  # 圖只顯示 10 m 附近，略過前面的爬升段
+# KP、KI、KD：P、I、D 三項的增益（係數）
 KP, KI, KD = 1.0, 0.5, 1.2
 
 
 def simulate(kp, ki, kd):
+    # alt：高度（m）；vel：垂直速度（m/s）；integral：誤差累積；prev_err：上一步的誤差；ts、hs：時間與高度的紀錄
     alt = vel = integral = 0.0
     prev_err = TARGET - alt
     ts, hs = [], []
     for i in range(int(T_END / DT)):
-        err = TARGET - alt
+        err = TARGET - alt  # err：誤差 = 目標 - 現在
         integral = min(max(integral + err * DT, -1.0), 1.0)  # 限制積分，避免累積過頭（anti-windup）
-        deriv = (err - prev_err) / DT
+        deriv = (err - prev_err) / DT  # deriv：誤差變化率（derivative）
         prev_err = err
+        # u：推力（0–1）；acc：加速度（m/s²）
         u = min(max(kp * err + ki * integral + kd * deriv, 0.0), 1.0)
         acc = 2 * G * (u - 0.5) - DRAG * vel
         vel += acc * DT

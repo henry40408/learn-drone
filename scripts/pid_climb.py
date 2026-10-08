@@ -11,15 +11,20 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# G：重力加速度（m/s²）；DRAG：空氣阻力係數；DT：模擬步長（秒）；T_END：模擬總時間（秒）；TARGET：目標高度（m）
 G, DRAG, DT, T_END, TARGET = 9.8, 3.0, 0.01, 15.0, 10.0
+# KP、KI、KD：P、I、D 三項的增益（係數）
 KP, KI, KD = 1.0, 0.5, 1.2
 
+# alt：高度（m）；vel：垂直速度（m/s）；integral：誤差累積；prev_err：上一步的誤差
 alt = vel = integral = 0.0
 prev_err = TARGET - alt
+# 紀錄：ts 時間、hs 高度、ps/is_/ds 為 P/I/D 三項的值（is_ 避開 Python 關鍵字 is）、us 實際推力
 ts, hs, ps, is_, ds, us = [], [], [], [], [], []
 for n in range(int(T_END / DT)):
     err = TARGET - alt
     integral = min(max(integral + err * DT, -1.0), 1.0)  # 同 pid_demo.py：限制積分
+    # err：誤差 = 目標 - 現在；p、i、d：P、I、D 三項各自貢獻的推力
     p, i, d = KP * err, KI * integral, KD * (err - prev_err) / DT
     prev_err = err
     u = min(max(p + i + d, 0.0), 1.0)

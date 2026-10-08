@@ -16,11 +16,12 @@ WIND_DIR = 90  # 度，風從哪個方向吹來
 
 MODES = {"STABILIZE": 0, "ALT_HOLD": 2, "GUIDED": 4, "LOITER": 5, "LAND": 9}
 
+# m：MAVLink 連線；m.mav.*_send 送出訊息，m.recv_match 接收訊息
 m = mavutil.mavlink_connection(CONN)
 m.wait_heartbeat(timeout=10)
 m.mav.request_data_stream_send(m.target_system, m.target_component,
                                mavutil.mavlink.MAV_DATA_STREAM_ALL, 10, 1)
-last_rc = 0.0
+last_rc = 0.0  # 上次送出 RC override 的時間（rc = remote control，遙控器）
 sticks_centered = True
 
 
@@ -51,6 +52,7 @@ def pause(seconds):
 
 
 def position():
+    """回傳 (x, y, 高度) 公尺；NED 座標的 z 向下為正，所以高度取負號。"""
     msg = m.recv_match(type="LOCAL_POSITION_NED", blocking=True, timeout=2)
     return (msg.x, msg.y, -msg.z) if msg else None
 

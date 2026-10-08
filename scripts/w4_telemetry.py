@@ -11,15 +11,18 @@ from pymavlink import mavutil
 
 DURATION = float(sys.argv[1]) if len(sys.argv) > 1 else 10.0
 
+# m：MAVLink 連線；m.mav.*_send 送出訊息，m.recv_match 接收訊息
 m = mavutil.mavlink_connection("tcp:127.0.0.1:5762")
 m.wait_heartbeat(timeout=10)
 print(f"連線 system={m.target_system} component={m.target_component}")
 
+# 要求訊息速率：hz = 每秒幾筆；mid = message id（訊息編號）
 for name, hz in (("ATTITUDE", 10), ("GLOBAL_POSITION_INT", 5)):
     mid = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{name}")
     m.mav.command_long_send(m.target_system, m.target_component,
                             mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0, mid, int(1e6 / hz), 0, 0, 0, 0, 0)
 
+# counts：這一秒內每種訊息收到幾筆；latest：每種訊息最新一筆
 counts = {"ATTITUDE": 0, "GLOBAL_POSITION_INT": 0}
 latest = {}
 start = last_print = time.time()
@@ -27,13 +30,13 @@ start = last_print = time.time()
 while time.time() - start < DURATION:
     msg = m.recv_match(type=list(counts), blocking=True, timeout=1)  # 要持續讀取，否則 SITL 會卡住
     if msg is not None:
-        t = msg.get_type()
+        t = msg.get_type()  # t：訊息種類名稱
         counts[t] += 1
         latest[t] = msg
     now = time.time()
     if now - last_print >= 1.0 and len(latest) == len(counts):
         dt = now - last_print
-        a, p = latest["ATTITUDE"], latest["GLOBAL_POSITION_INT"]
+        a, p = latest["ATTITUDE"], latest["GLOBAL_POSITION_INT"]  # a：姿態（attitude）；p：位置（position）
         print(f"ATTITUDE {counts['ATTITUDE'] / dt:5.1f} Hz  "
               f"roll={math.degrees(a.roll):6.2f}° pitch={math.degrees(a.pitch):6.2f}° "
               f"yaw={math.degrees(a.yaw):7.2f}° | "

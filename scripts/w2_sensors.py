@@ -13,11 +13,13 @@ from pymavlink import mavutil
 N = 50  # 取樣筆數
 TYPES = ["RAW_IMU", "SCALED_PRESSURE", "GPS_RAW_INT", "ATTITUDE"]
 
+# m：MAVLink 連線；m.mav.*_send 送出訊息，m.recv_match 接收訊息
 m = mavutil.mavlink_connection("tcp:127.0.0.1:5762")
 m.wait_heartbeat(timeout=30)
 
 # 要求每個訊息 10 Hz（單位：微秒）
 for name in TYPES:
+    # mid：message id，訊息編號
     mid = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{name}")
     m.mav.command_long_send(m.target_system, m.target_component,
                             mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0,
@@ -34,15 +36,16 @@ if min(len(v) for v in data.values()) < N:
     sys.exit(f"逾時，收到筆數：{ {k: len(v) for k, v in data.items()} }")
 
 
-def stat(xs):
+def stat(xs):  # xs：一串數值（取樣）；回傳 (平均, 標準差)
     return statistics.mean(xs), statistics.stdev(xs)
 
 
 def show(label, xs, unit):
-    mean, sd = stat(xs)
+    mean, sd = stat(xs)  # sd：standard deviation，標準差，用來表示雜訊大小
     print(f"  {label:<10} 平均 {mean:10.3f}  雜訊（標準差）{sd:8.4f}  {unit}")
 
 
+# imu：RAW_IMU 原始值（陀螺儀、加速度計）；att：EKF 估算的 ATTITUDE；gps：最新一筆 GPS_RAW_INT
 imu = data["RAW_IMU"]
 print(f"== RAW_IMU（{N} 筆）==")
 show("gyro x", [r.xgyro / 1000 for r in imu], "rad/s")
@@ -68,9 +71,11 @@ show("pitch", [math.degrees(r.pitch) for r in att], "°")
 show("yaw", [math.degrees(r.yaw) for r in att], "°")
 
 # 只用加速度計算傾角，對照 EKF 的估算
+# ax、ay、az：加速度計 x、y、z 軸原始值（單位 mG）
 ax = [r.xacc for r in imu]
 ay = [r.yacc for r in imu]
 az = [r.zacc for r in imu]
+# roll_acc、pitch_acc：只用加速度計算出的 roll、pitch（度）
 roll_acc = math.degrees(math.atan2(statistics.mean(ay), -statistics.mean(az)))
 pitch_acc = math.degrees(math.atan2(statistics.mean(ax),
                                      math.hypot(statistics.mean(ay), statistics.mean(az))))

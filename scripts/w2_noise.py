@@ -12,10 +12,12 @@ import time
 from pymavlink import mavutil
 
 HOLD = "--hold" in sys.argv  # 懸停並保持雜訊，Ctrl-C 結束（給 QGC 觀察用）
+# ACC_RND、GYR_RND：模擬加速度計、陀螺儀的隨機雜訊（rnd = random）強度；VIB_FREQ：x、y、z 軸的振動頻率
 ACC_RND, GYR_RND = (10.0, 10.0) if HOLD else (3.0, 5.0)
 VIB_FREQ = (50.0, 60.0, 70.0)  # Hz；加速度計雜訊要有振動頻率才會加進去
 N = 100  # 每階段取樣筆數
 
+# m：MAVLink 連線；m.mav.*_send 送出訊息，m.recv_match 接收訊息
 m = mavutil.mavlink_connection("tcp:127.0.0.1:5762")
 m.wait_heartbeat(timeout=10)
 
@@ -25,7 +27,7 @@ def set_param(name, value):
                          mavutil.mavlink.MAV_PARAM_TYPE_REAL32)
 
 
-def command(cmd, *params, timeout=10):
+def command(cmd, *params, timeout=10):  # cmd：MAV_CMD 指令編號；params：最多 7 個指令參數，不足補 0
     m.mav.command_long_send(m.target_system, m.target_component, cmd, 0,
                             *(list(params) + [0] * (7 - len(params))))
     ack = m.recv_match(type="COMMAND_ACK", blocking=True, timeout=timeout)
@@ -34,12 +36,12 @@ def command(cmd, *params, timeout=10):
 
 
 def interval(name, hz):
-    mid = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{name}")
+    mid = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{name}")  # mid：message id，訊息編號
     command(mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, mid, int(1e6 / hz))
 
 
 def sample():
-    imu, att = [], []
+    imu, att = [], []  # imu：RAW_IMU 原始值；att：EKF 估算的 ATTITUDE
     deadline = time.time() + 30
     while time.time() < deadline and (len(imu) < N or len(att) < N):
         msg = m.recv_match(type=["RAW_IMU", "ATTITUDE"], blocking=True, timeout=1)
@@ -52,7 +54,8 @@ def sample():
 
 
 def report(label, imu, att):
-    sd = statistics.stdev
+    sd = statistics.stdev  # sd：standard deviation，標準差，用來表示雜訊大小
+    # roll_acc：只用加速度計算的 roll；roll_ekf：EKF 估算的 roll（度）
     roll_acc = [math.degrees(math.atan2(r.yacc, -r.zacc)) for r in imu]
     roll_ekf = [math.degrees(r.roll) for r in att]
     print(f"\n== {label} ==")

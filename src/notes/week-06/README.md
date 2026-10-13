@@ -53,6 +53,18 @@
 
 ## 學到什麼
 
+### 實作 1：上傳任務並用 AUTO 執行
+
+![QGC Fly 視圖：橘色圓點 2、3、4 是航點，紅線是飛機實際飛過的軌跡，綠色 H 是 Home；右下角顯示任務耗時 1 分 04 秒](images/qgc-mission-square.png)
+
+- **上傳**：送 `MISSION_COUNT = 7`，飛控依序要第 0–6 項（全部用舊版 `MISSION_REQUEST`），回 `MISSION_ITEM_INT` 即被接受，最後 `MISSION_ACK ACCEPTED`；不到 0.1 秒完成。
+- **在地面切 AUTO 不會起飛**：只看到「Mission: 1 Takeoff」，約 10 秒後飛控因為沒離地而自動 disarm；要再送 `MAV_CMD_MISSION_START`。
+- **進度**：`MISSION_CURRENT` 是「現在執行第幾項」，`MISSION_ITEM_REACHED` 是「到了第幾項」；整趟約 65 秒（起飛 10 秒、四個角各約 5–7 秒、RTL 含降落約 31 秒）。結束後 `MISSION_CURRENT` 回到第 0 項。
+- **圖上看到的**：
+  - 起飛（第 1 項）沒有座標，QGC 不畫點；第 5 項就在 Home 上，與 Home 圖示重疊，所以只看到 2、3、4 三個圓點
+  - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
+  - 飛機落地後機頭朝西（羅盤 270°）
+
 ## 卡在哪
 
 ## 下週問題

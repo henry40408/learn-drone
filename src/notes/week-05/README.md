@@ -23,7 +23,7 @@
 
 **必讀**
 
-1. Guided 模式（Copter）：<https://ardupilot.org/copter/docs/ardupilot-copter-guided-mode.html>
+1. Guided 模式（Copter）：<https://ardupilot.org/copter/docs/ac2_guidedmode.html>
 2. 以 MAVLink 控制 Copter：<https://ardupilot.org/dev/docs/copter-commands-in-guided-mode.html>：takeoff、位置、速度指令與 `type_mask`
 
 **選讀**

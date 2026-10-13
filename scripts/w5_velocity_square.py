@@ -45,7 +45,7 @@ def log(msg):
 
 def command(cmd, *params):
     """送 COMMAND_LONG 並等 COMMAND_ACK；回傳 result（0 = ACCEPTED）。"""
-    p = list(params) + [0] * (7 - len(params))
+    p = list(params) + [0] * (7 - len(params))  # p：補滿 7 個的 COMMAND_LONG 參數（param1–param7）
     m.mav.command_long_send(m.target_system, m.target_component, cmd, 0, *p)
     ack = m.recv_match(type="COMMAND_ACK", condition=f"COMMAND_ACK.command=={cmd}",
                        blocking=True, timeout=5)
@@ -80,10 +80,24 @@ def fly(label, vx, vy, seconds, send=True):
             next_print += 1.0
 
 
+def wait_disarmed():
+    """等 HEARTBEAT 的 base_mode 不再有 ARMED 旗標（落地後飛控自動 disarm）；逾時就結束腳本。
+    不用高度判斷：relative_alt 是相對 home 的值，落地後可能仍讀到 1 m 以上。"""
+    end = time.time() + TIMEOUT
+    while time.time() < end:
+        hb = m.recv_match(type="HEARTBEAT", blocking=True, timeout=1)
+        if hb is None or hb.get_srcSystem() != m.target_system:  # 連線上也有 GCS（system 255）的 HEARTBEAT，要略過
+            continue
+        if not hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+            log("降落：完成（已 disarm）")
+            return
+    raise SystemExit("逾時：降落")
+
+
 def wait_alt(check, label):
     end = time.time() + TIMEOUT
     while time.time() < end:
-        g = m.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=1)
+        g = m.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=1)  # g：GLOBAL_POSITION_INT 訊息
         if g is not None and check(g.relative_alt / 1000):  # relative_alt 單位 mm → m
             log(f"{label}：完成")
             return
@@ -92,7 +106,9 @@ def wait_alt(check, label):
 
 # 1. 切 GUIDED、arm（EKF 還沒準備好會被拒絕，所以重試）
 set_mode(GUIDED)
-m.recv_match(type="HEARTBEAT", condition=f"HEARTBEAT.custom_mode=={GUIDED}", blocking=True, timeout=5)
+if m.recv_match(type="HEARTBEAT", condition=f"HEARTBEAT.custom_mode=={GUIDED}",
+                 blocking=True, timeout=5) is None:
+    raise SystemExit("切 GUIDED 失敗")
 log("模式：GUIDED")
 for _ in range(30):
     result = command(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, 1)
@@ -120,4 +136,4 @@ else:
 # 4. 降落
 set_mode(LAND)
 log("模式：LAND")
-wait_alt(lambda alt: alt < 0.2, "降落")
+wait_disarmed()

@@ -11,7 +11,7 @@
    - 起飛：`COMMAND_LONG`（`MAV_CMD_NAV_TAKEOFF`）
    - 位置／速度：`SET_POSITION_TARGET_LOCAL_NED`（或 `GLOBAL_INT`），用 `type_mask` 選要控制哪些欄位
 5. **座標系**：local NED 是 x 北、y 東、z **向下**（高度要給負數）；全域用緯度、經度、相對高度。
-6. **速度控制要持續發送**：速度指令約 1 秒沒更新就失效，飛機會停下來（類似 W1 的 RC override）。
+6. **速度控制要持續發送**：速度指令約 3 秒（`GUID_TIMEOUT`）沒更新就失效，飛機才會停下來（類似 W1 的 RC override）。
 7. **降落**：切 LAND 模式，落地後飛控自動 disarm。
 
 ### 可以跳過
@@ -54,7 +54,7 @@
 
 - **指令的 ACK 只代表「收到」，不代表「做完」**：回答 W4 留下的問題，完成與否要看遙測（高度、距離）。
 - **goto 沒有 ACK**：`SET_POSITION_TARGET_*` 是目標訊息不是指令，送出去就沒下文，到沒到要自己看位置。
-- **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測看過 `Arm: Throttle (RC3) is not neutral`），ACK 本身只說 `FAILED`。
+- **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測在 `sitl.sh` 的輸出裡看到 `Arm: Throttle (RC3) is not neutral`；腳本本身沒有印 `STATUSTEXT`），ACK 本身只說 `FAILED`。
 - **QGC 會干擾**：QGC 的虛擬搖桿開著時，油門不在中位，arm 一直被拒絕；關掉虛擬搖桿後 1 秒就 arm 成功。
 
 ### 實作 2：速度控制
@@ -86,6 +86,9 @@
 
 - **arm 一直被拒絕**：先是 EKF 還沒好（等約 20 秒），後來是 QGC 虛擬搖桿讓 RC3 不在中位；`COMMAND_ACK` 只說 `FAILED`，原因要看 `STATUSTEXT`。
 - **MAVSDK 連不上**：QGC 還開著會搶 14550，要先關掉；用 `udp://` 會有棄用警告。
+- **用高度判斷落地不可靠**：飛機已落地並 disarm，`relative_alt` 仍讀到 1.17 m（相對 home 的值會漂移），`< 0.2 m` 的條件逾時；改成等飛控 disarm。
+- **等 disarm 被 GCS 的 `HEARTBEAT` 誤觸**：連線上也有 system 255 的 `HEARTBEAT`（沒有 ARMED 旗標），第一版沒過濾，腳本在降落開始 0.6 秒就誤判完成；要只看 `get_srcSystem() == m.target_system`。同樣的問題 W4 實作 4 就提過。
+- **goto 馬上「完成」**：目標是相對 EKF 原點的 (20, 20)，連續多次不重啟 SITL 時，飛機降落點已經在 (20, 20)，所以一開始就在目標上。要重現飛行過程需重啟 SITL。
 - **`type_mask` 的位元寫錯**：手算的值多了 `FORCE_SET`，實測雖然能飛，但不精確。
 - **沒解開的疑問**：
   - 速度模式的加速度上限到底是哪個參數（`WPNAV_ACCEL`？）。

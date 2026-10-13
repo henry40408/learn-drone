@@ -84,10 +84,19 @@ async def main():
 
         await wait_for("goto", reached)
 
-        # 4. 降落：落地後飛控自動 disarm
+        # 4. 降落：落地後飛控自動 disarm；用 armed 狀態判斷（相對高度落地後可能仍讀到 1 m 以上）
         await action.land()
         log("land 指令已送出")
-        await wait_for("降落", lambda p: p.relative_altitude_m < 0.2)
+        async def disarmed():
+            async for armed in telemetry.subscribe_armed():
+                if not armed:
+                    return
+
+        try:
+            await asyncio.wait_for(disarmed(), TIMEOUT)
+        except asyncio.TimeoutError:
+            raise SystemExit("逾時：降落")
+        log("降落：完成（已 disarm）")
 
 
 asyncio.run(main())

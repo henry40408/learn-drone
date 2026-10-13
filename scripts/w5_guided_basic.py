@@ -10,8 +10,8 @@ from pymavlink import mavutil
 
 CONN = "tcp:127.0.0.1:5762"
 TAKEOFF_ALT = 10  # 起飛高度，公尺（相對起飛點）
-GOTO_NORTH = 20  # goto 目標：往北幾公尺（相對起飛點）
-GOTO_EAST = 20  # goto 目標：往東幾公尺（相對起飛點）
+GOTO_NORTH = 20  # goto 目標：往北幾公尺（相對 EKF 原點，SITL 即起飛點）
+GOTO_EAST = 20  # goto 目標：往東幾公尺（相對 EKF 原點，SITL 即起飛點）
 GUIDED = 4  # ArduCopter 的 GUIDED 模式編號
 TIMEOUT = 60  # 每個階段最多等幾秒
 
@@ -29,7 +29,7 @@ def log(msg):
 
 def command(cmd, *params):
     """送 COMMAND_LONG 並等 COMMAND_ACK；回傳 result（0 = ACCEPTED）。"""
-    p = list(params) + [0] * (7 - len(params))
+    p = list(params) + [0] * (7 - len(params))  # p：補滿 7 個的 COMMAND_LONG 參數（param1–param7）
     m.mav.command_long_send(m.target_system, m.target_component, cmd, 0, *p)
     ack = m.recv_match(type="COMMAND_ACK", condition=f"COMMAND_ACK.command=={cmd}",
                        blocking=True, timeout=5)
@@ -47,13 +47,29 @@ def wait_for(label, check):
     raise SystemExit(f"逾時：{label}")
 
 
+def wait_disarmed():
+    """等 HEARTBEAT 的 base_mode 不再有 ARMED 旗標（落地後飛控自動 disarm）；逾時就結束腳本。
+    不用高度判斷：relative_alt 是相對 home 的值，落地後可能仍讀到 1 m 以上。"""
+    end = time.time() + TIMEOUT
+    while time.time() < end:
+        hb = m.recv_match(type="HEARTBEAT", blocking=True, timeout=1)
+        if hb is None or hb.get_srcSystem() != m.target_system:  # 連線上也有 GCS（system 255）的 HEARTBEAT，要略過
+            continue
+        if not hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+            log("降落：完成（已 disarm）")
+            return
+    raise SystemExit("逾時：降落")
+
+
 def rel_alt(msg):
     return msg.relative_alt / 1000  # relative_alt 單位 mm → m
 
 
 # 1. 切 GUIDED
 m.mav.set_mode_send(m.target_system, mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, GUIDED)
-m.recv_match(type="HEARTBEAT", condition=f"HEARTBEAT.custom_mode=={GUIDED}", blocking=True, timeout=5)
+if m.recv_match(type="HEARTBEAT", condition=f"HEARTBEAT.custom_mode=={GUIDED}",
+                 blocking=True, timeout=5) is None:
+    raise SystemExit("切 GUIDED 失敗")
 log("模式：GUIDED")
 
 # 2. arm（SITL 剛啟動時 EKF 還沒準備好會被拒絕，所以重試）
@@ -95,7 +111,7 @@ def reached(_):
 
 wait_for("goto", reached)
 
-# 5. 降落：LAND 模式（編號 9），落地後飛控自動 disarm
+# 5. 降落：LAND 模式（編號 9），等飛控 disarm
 m.mav.set_mode_send(m.target_system, mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, 9)
 log("模式：LAND")
-wait_for("降落", lambda g: rel_alt(g) < 0.2)
+wait_disarmed()

@@ -49,7 +49,7 @@
 3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作（腳本：[`scripts/w6_geofence.py`](../../appendix/scripts/w6_geofence.md)）
 4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL（腳本：[`scripts/w6_failsafe_battery.py`](../../appendix/scripts/w6_failsafe_battery.md)，觸發低電量）
 5. （選做）用 MAVSDK 的 `mission` 外掛重做實作 1，比較兩者
-6. 專案 1：`projects/waypoint-mission`，整合以上做成「自動飛正方形並回家」
+6. 專案 1：[`projects/waypoint-mission`](../../projects/waypoint-mission.md)，整合以上做成「自動飛正方形並回家」
 
 ## 學到什麼
 

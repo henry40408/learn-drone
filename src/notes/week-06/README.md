@@ -7,7 +7,7 @@
 1. **任務是一份「清單」存在飛控裡**：用 AUTO 模式執行，不是你一直發指令。W5 的 Guided 是「你指揮每一步」，W6 的任務是「先交代好、再放手」。
 2. **上傳任務有固定協定**（MAVLink mission protocol）：
    - 你送 `MISSION_COUNT`（共幾項）
-   - 飛控逐項回 `MISSION_REQUEST_INT`（要第幾項；SITL 實測回的是舊版 `MISSION_REQUEST`，實作 1 再確認該回哪種）
+   - 飛控逐項回 `MISSION_REQUEST_INT`（要第幾項；SITL 實測 7 次要項目全都是舊版 `MISSION_REQUEST`，回 `MISSION_ITEM_INT` 也被接受）
    - 你回 `MISSION_ITEM_INT`（該項內容）
    - 全部收完，飛控回 `MISSION_ACK`
    - 跟 W4 的 `COMMAND_LONG` 不同：這是**飛控主動來要**，你被動回應
@@ -44,7 +44,7 @@
 
 ## 實作
 
-1. pymavlink 上傳一個正方形任務（起飛 → 四個航點 → RTL），切 AUTO 執行並觀察進度（`MISSION_CURRENT`、`MISSION_ITEM_REACHED`）
+1. pymavlink 上傳一個正方形任務（起飛 → 四個航點 → RTL），切 AUTO 執行並觀察進度（`MISSION_CURRENT`、`MISSION_ITEM_REACHED`）（腳本：[`scripts/w6_mission_square.py`](../../appendix/scripts/w6_mission_square.md)）
 2. 觀察任務協定：只送 `MISSION_COUNT` 不回應會怎樣？（逾時與重送）
 3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作
 4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL

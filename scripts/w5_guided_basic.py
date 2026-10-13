@@ -72,8 +72,12 @@ log(f"takeoff 結果：{command(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0,
 wait_for("takeoff", lambda g: rel_alt(g) >= TAKEOFF_ALT * 0.95)
 
 # 4. goto：SET_POSITION_TARGET_LOCAL_NED（local NED：x 北、y 東、z 下；負 z 表示上方）
-# type_mask 只啟用位置（x, y, z），忽略速度、加速度、yaw
-POS_ONLY = 0b0000_1111_1111_1000
+# type_mask 只啟用位置（x, y, z），忽略速度、加速度、yaw、yaw 速率
+T = mavutil.mavlink  # T：MAVLink 常數的命名空間，只為了縮短下面的名稱
+POS_ONLY = (T.POSITION_TARGET_TYPEMASK_VX_IGNORE | T.POSITION_TARGET_TYPEMASK_VY_IGNORE
+            | T.POSITION_TARGET_TYPEMASK_VZ_IGNORE | T.POSITION_TARGET_TYPEMASK_AX_IGNORE
+            | T.POSITION_TARGET_TYPEMASK_AY_IGNORE | T.POSITION_TARGET_TYPEMASK_AZ_IGNORE
+            | T.POSITION_TARGET_TYPEMASK_YAW_IGNORE | T.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE)
 m.mav.set_position_target_local_ned_send(
     0, m.target_system, m.target_component, mavutil.mavlink.MAV_FRAME_LOCAL_NED,
     POS_ONLY, GOTO_NORTH, GOTO_EAST, -TAKEOFF_ALT, 0, 0, 0, 0, 0, 0, 0, 0)

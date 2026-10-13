@@ -46,7 +46,7 @@
 
 1. pymavlink 上傳一個正方形任務（起飛 → 四個航點 → RTL），切 AUTO 執行並觀察進度（`MISSION_CURRENT`、`MISSION_ITEM_REACHED`）（腳本：[`scripts/w6_mission_square.py`](../../appendix/scripts/w6_mission_square.md)）
 2. 觀察任務協定：只送 `MISSION_COUNT` 不回應會怎樣？（逾時與重送）
-3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作
+3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作（腳本：[`scripts/w6_geofence.py`](../../appendix/scripts/w6_geofence.md)）
 4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL（腳本：[`scripts/w6_failsafe_battery.py`](../../appendix/scripts/w6_failsafe_battery.md)，觸發低電量）
 5. （選做）用 MAVSDK 的 `mission` 外掛重做實作 1，比較兩者
 6. 專案 1：`projects/waypoint-mission`，整合以上做成「自動飛正方形並回家」
@@ -64,6 +64,17 @@
   - 起飛（第 1 項）沒有座標，QGC 不畫點；第 5 項就在 Home 上，與 Home 圖示重疊，所以只看到 2、3、4 三個圓點
   - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
   - 飛機落地後機頭朝西（羅盤 270°）
+
+### 實作 3：圓柱 geofence
+
+腳本：[`scripts/w6_geofence.py`](../../appendix/scripts/w6_geofence.md)。設 `FENCE_ENABLE = 1`、`FENCE_TYPE = 3`（高度上限 + 圓）、`FENCE_ACTION = 1`（RTL，不行就 LAND）、`FENCE_RADIUS = 30`（最小值）、`FENCE_ALT_MAX = 20`；起飛到 10 m 後用速度指令往北 3 m/s。
+
+- **越界**：北約 28–30 m 時飛控送出 `Circle fence breached`，GUIDED 變 RTL；慣性讓飛機衝到北約 32.5 m，之後先爬到 15 m（`RTL_ALT`）再飛回 Home，回到圍欄內時送出 `Fence breach cleared`，約 45 秒後落地。
+- **三個沒預料到的地方**（一開始都沒觸發越界）：
+  1. **Guided 的 goto 目標在圍欄外會被直接拒絕**：飛機完全不動、沒有任何回應。要飛出去只能用速度指令。
+  2. **`AVOID_ENABLE` 預設 3（含 `UseFence`）**：速度指令飛到離圍欄約 2 m（北 27.6 m）就被擋下來、停在原地，不會越界。要觀察越界必須把 `AVOID_ENABLE` 設成 0（腳本結束會還原）。
+  3. **Home 每次 arm 都會重設**：圍欄圓心是 Home，上次降落在北 28 m 的話，下次 arm 的圍欄圓心就在那裡；要回到起點才能看到同樣的結果（SITL 用重啟）。
+- **重啟後剛開機**：EKF 約 20 秒才有位置，這之前切 GUIDED 會出現 `Need Position Estimate`，arm 也會被拒絕，等 `EKF3 IMU0 is using GPS` 即可。
 
 ### 實作 4：觸發低電量 failsafe
 

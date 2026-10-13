@@ -42,7 +42,7 @@
 
 ### 實作 1：pymavlink 基本流程
 
-![QGC Fly 視圖：紅線是 goto 的軌跡，從綠色 H（Home）筆直飛向東北方；右下角顯示離 Home 28.8 m、飛行時間 36 秒、機頭 45°](images/qgc-goto.png)
+![QGC Fly 視圖：紅線是 goto 的軌跡，從綠色 H（Home）筆直飛向東北方；右下角顯示離 Home 28.6 m、飛行距離 28.8 m、飛行時間 36 秒、機頭 45°](images/qgc-goto.png)
 
 流程是「切 GUIDED → arm → takeoff → goto → LAND」，每步都等條件成立：
 
@@ -58,9 +58,11 @@
 - **goto 沒有 ACK**：`SET_POSITION_TARGET_*` 是目標訊息不是指令，送出去就沒下文，到沒到要自己看位置。
 - **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測在 `sitl.sh` 的輸出裡看到 `Arm: Throttle (RC3) is not neutral`；腳本本身沒有印 `STATUSTEXT`），ACK 本身只說 `FAILED`。
 - **QGC 會干擾**：QGC 的虛擬搖桿開著時，油門不在中位，arm 一直被拒絕；關掉虛擬搖桿後 1 秒就 arm 成功。
-- **goto 是直線飛過去**：軌跡是 Home 到目標的一條直線（對照 W6 任務的圓角路徑），QGC 顯示離 Home 28.8 m，與 √(20² + 20²) ≈ 28.3 m 大致吻合（落地時有約半公尺的偏差）。
+- **goto 是直線飛過去**：軌跡是 Home 到目標的一條直線（對照 W6 任務的圓角路徑），落地點離 Home 28.6 m（QGC 左下），與 √(20² + 20²) ≈ 28.3 m 大致吻合，約差 0.3 m；飛行距離顯示 28.8 m（QGC 右下，水平累計）。
 
 ### 實作 2：速度控制
+
+![QGC Fly 視圖：紅線是速度控制飛出的正方形，四個角略呈圓角；綠色 H 在左下角，機身落在 Home 附近；右下角顯示離 Home 0.9 m、飛行距離 74.9 m、飛行時間 1 分 13 秒](images/qgc-velocity-square.png)
 
 `SET_POSITION_TARGET_LOCAL_NED` 的 `type_mask` 決定哪些欄位有效：用速度就忽略位置、加速度、yaw、yaw 速率。座標系 local NED：x 北、y 東、z 向下（往上要給負的）。
 

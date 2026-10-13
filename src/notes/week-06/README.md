@@ -11,11 +11,11 @@
    - 你回 `MISSION_ITEM_INT`（該項內容）
    - 全部收完，飛控回 `MISSION_ACK`
    - 跟 W4 的 `COMMAND_LONG` 不同：這是**飛控主動來要**，你被動回應
-3. **任務項目 = 指令 + 參數 + 座標**：`NAV_TAKEOFF`、`NAV_WAYPOINT`、`NAV_RETURN_TO_LAUNCH`、`NAV_LAND` 等；第 0 項在 ArduPilot 是 home，不能當航點用（需查文件確認細節）。數量上限取決於飛控的儲存空間：SITL 實測 `MISSION_COUNT` 650 可以、651 起回 `MISSION_ACK` type 4（`NO_SPACE`）。
-4. **航點之間會減速轉彎還是順過**：一般航點到達判定看 `WP_RADIUS`（速度 `WP_SPD`、加速度 `WP_ACCEL`、轉角加速度 `WP_ACC_CNR`）；spline 航點（`NAV_SPLINE_WAYPOINT`）才會平滑過彎。這是 W5 速度控制轉角減速的答案。
+3. **任務項目 = 指令 + 參數 + 座標**：`NAV_TAKEOFF`、`NAV_WAYPOINT`、`NAV_RETURN_TO_LAUNCH`、`NAV_LAND` 等；第 0 項在 ArduPilot 是 home，不能當航點用（需查文件確認細節）。數量上限取決於飛控的儲存空間：SITL 手動實測（沒有留下腳本）`MISSION_COUNT` 650 可以、651 起回 `MISSION_ACK` type 4（`NO_SPACE`）。
+4. **航點之間會減速轉彎還是順過**：一般航點到達判定看 `WP_RADIUS_M`（速度 `WP_SPD`、加速度 `WP_ACC`、轉角加速度 `WP_ACC_CNR`）；spline 航點（`NAV_SPLINE_WAYPOINT`）才會平滑過彎。這是 W5 速度控制轉角減速的答案。
 5. **Geofence（地理圍欄）**：用一組 `FENCE_*` 參數設定圓柱範圍（半徑、高度上限）與越界動作（RTL、降落…）；越界時飛控自己處理，不靠你的程式。
 6. **Failsafe（故障保護）**：遙控器斷線、地面站斷線、電池低電量、EKF 失效等情況各有參數決定動作，常見是 RTL 或 LAND。
-7. **RTL（Return To Launch）**：回到起飛點上空（先爬到 `RTL_ALT`），再降落；也是多數 failsafe 的預設動作。
+7. **RTL（Return To Launch）**：回到起飛點上空（先爬到 `RTL_ALT_M`），再降落；也是常見的 failsafe 動作（要自己設，例如 `BATT_FS_LOW_ACT` 預設是 0，不會動作）。
 8. **安全機制是「最後防線」**：先在模擬器故意觸發一次，看到它真的動作，才算理解。
 
 ### 可以跳過
@@ -62,7 +62,7 @@
 - **進度**：`MISSION_CURRENT` 是「現在執行第幾項」，`MISSION_ITEM_REACHED` 是「到了第幾項」；整趟約 65 秒（起飛 10 秒、四個角各約 5–7 秒、RTL 含降落約 31 秒）。結束後 `MISSION_CURRENT` 回到第 0 項。
 - **圖上看到的**：
   - 起飛（第 1 項）沒有座標，QGC 不畫點；第 5 項就在 Home 上，與 Home 圖示重疊，所以只看到 2、3、4 三個圓點
-  - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
+  - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS_M`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
   - 飛機落地後機頭朝西（羅盤 270°）
 
 ### 實作 2：任務協定逾時與重送
@@ -81,7 +81,7 @@
 ![QGC Fly 視圖：橘色圓是半徑 30 m 的圓柱圍欄，圓心在 Home；紅線從 Home 往北直線飛出，在圍欄邊緣稍微越界後原路飛回；右下角顯示飛行時間 1 分 06 秒、飛行距離 62.9 m](images/qgc-geofence.png)
 
 - **QGC 才畫得出圍欄**：圓只在 `FENCE_ENABLE = 1` 時顯示；腳本結束還原參數後圓就消失，截圖要用 `keep` 選項（結束不還原）。
-- **越界**：北約 28–30 m 時飛控送出 `Circle fence breached`，GUIDED 變 RTL；慣性讓飛機衝到北約 32.5 m，之後先爬到 15 m（`RTL_ALT`）再飛回 Home，回到圍欄內時送出 `Fence breach cleared`，約 45 秒後落地。
+- **越界**：北約 28–30 m 時飛控送出 `Circle fence breached`，GUIDED 變 RTL；慣性讓飛機衝到北約 32.5 m，之後先爬到 15 m（`RTL_ALT_M`）再飛回 Home，回到圍欄內時送出 `Fence breach cleared`，約 45 秒後落地。
 - **三個沒預料到的地方**（一開始都沒觸發越界）：
   1. **Guided 的 goto 目標在圍欄外會被直接拒絕**：飛機完全不動、沒有任何回應。要飛出去只能用速度指令。
   2. **`AVOID_ENABLE` 預設 3（含 `UseFence`）**：速度指令飛到離圍欄約 2 m（北 27.6 m）就被擋下來、停在原地，不會越界。要觀察越界必須把 `AVOID_ENABLE` 設成 0（腳本結束會還原）。
@@ -109,7 +109,7 @@
 - **重啟飛控後剛開機**：`Need Position Estimate`、`Accels inconsistent`、`waiting for home` 都只是 EKF 還沒好，等約 20 秒。
 - **QGC 的圍欄圓只在 `FENCE_ENABLE = 1` 時顯示**：腳本結束還原參數後圓就消失，截圖要用 `keep` 選項。
 - **沒解開的疑問**：
-  - 軌跡的圓角到底由 `WP_RADIUS` 還是 `WP_ACC_CNR` 決定（只是推測，沒有改參數驗證）。
+  - 軌跡的圓角到底由 `WP_RADIUS_M` 還是 `WP_ACC_CNR` 決定（只是推測，沒有改參數驗證）。
   - SITL 任務容量 650 是否含 home（`MISSION_COUNT` 650 可、651 起 `NO_SPACE`）。
   - `NAV_SPLINE_WAYPOINT` 實際軌跡長怎樣（沒做）。
   - 只觸發了低電量 failsafe；遙控器斷線、地面站斷線（`FS_GCS_ENABLE`）、EKF 失效沒測。

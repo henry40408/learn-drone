@@ -56,6 +56,18 @@ def set_param(name, value):
     log(f"{name} = {msg.param_value:g}")
 
 
+def restore(originals):
+    """逐一還原參數；某一個失敗不影響其他，最後回報失敗的名稱。"""
+    failed = []  # 還原失敗的參數名稱
+    for name, value in originals.items():
+        try:
+            set_param(name, value)
+        except SystemExit:
+            failed.append(name)
+    if failed:
+        log(f"警告：這些參數沒有還原成功，請手動檢查：{failed}")
+
+
 def watch(until):
     """印出模式變化與飛控的 STATUSTEXT，直到 until() 為真；逾時就結束腳本。"""
     end = time.time() + TIMEOUT
@@ -100,6 +112,8 @@ try:
         g = m.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=1)
         if g is not None and g.relative_alt / 1000 >= ALT * 0.95:  # relative_alt 單位 mm → m
             break
+    else:
+        raise SystemExit("逾時：takeoff")
     log("takeoff 完成")
     m.mav.set_position_target_local_ned_send(
         0, m.target_system, m.target_component, T.MAV_FRAME_LOCAL_NED,
@@ -113,10 +127,15 @@ try:
         pos = m.recv_match(type="LOCAL_POSITION_NED", blocking=True, timeout=1)  # pos.x：往北距離，公尺
         if pos is not None and abs(pos.x - FAR) < 1.0:
             break
+    else:
+        raise SystemExit(f"逾時：飛到北 {FAR} m")
     log(f"已飛到北 {FAR} m")
 
     # 2. 把低電量門檻調到比目前電壓高 1 V
-    volt = m.recv_match(type="SYS_STATUS", blocking=True, timeout=5).voltage_battery / 1000  # mV → V
+    status = m.recv_match(type="SYS_STATUS", blocking=True, timeout=5)  # status：SYS_STATUS 訊息
+    if status is None:
+        raise SystemExit("收不到 SYS_STATUS")
+    volt = status.voltage_battery / 1000  # mV → V
     log(f"目前電壓 {volt:.2f} V，把 BATT_LOW_VOLT 調到 {volt + 1:.2f} V")
     set_param("BATT_LOW_VOLT", volt + 1)
 
@@ -124,5 +143,4 @@ try:
     watch(disarmed)
     log("結束：已 disarm")
 finally:
-    for name, value in originals.items():
-        set_param(name, value)
+    restore(originals)

@@ -67,6 +67,18 @@ def set_param(name, value):
     log(f"{name} = {msg.param_value:g}")
 
 
+def restore(originals):
+    """逐一還原參數；某一個失敗不影響其他，最後回報失敗的名稱。"""
+    failed = []  # 還原失敗的參數名稱
+    for name, value in originals.items():
+        try:
+            set_param(name, value)
+        except SystemExit:
+            failed.append(name)
+    if failed:
+        log(f"警告：這些參數沒有還原成功，請手動檢查：{failed}")
+
+
 originals = {n: get_param(n) for n in PARAMS}  # 結束時還原
 log(f"原始參數：{originals}")
 try:
@@ -88,21 +100,23 @@ try:
         g = m.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=1)
         if g is not None and g.relative_alt / 1000 >= ALT * 0.95:  # relative_alt 單位 mm → m
             break
+    else:
+        raise SystemExit("逾時：takeoff")
     log("takeoff 完成")
 
-    # 2. 速度指令往北（10 Hz 持續送；速度指令不做圍欄檢查，所以飛得出去），越界後飛控會改模式
+    # 2. 速度指令往北（10 Hz 持續送；速度指令不像 goto 會被預先拒絕，但要關掉 AVOID_ENABLE 才飛得出圍欄），越界後飛控會改模式
     ignore = (T.POSITION_TARGET_TYPEMASK_X_IGNORE | T.POSITION_TARGET_TYPEMASK_Y_IGNORE
               | T.POSITION_TARGET_TYPEMASK_Z_IGNORE | T.POSITION_TARGET_TYPEMASK_AX_IGNORE
               | T.POSITION_TARGET_TYPEMASK_AY_IGNORE | T.POSITION_TARGET_TYPEMASK_AZ_IGNORE
               | T.POSITION_TARGET_TYPEMASK_YAW_IGNORE | T.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE)
     log(f"往北 {SPEED} m/s（圍欄半徑 {FENCE_RADIUS} m）")
 
-    # 3. 印模式變化、STATUSTEXT、每 5 m 變化一次的離 Home 距離，直到 disarm
+    # 3. 印模式變化、STATUSTEXT、每 5 m 變化一次的北向距離（離 EKF 原點），直到 disarm
     end = time.time() + TIMEOUT
     send_until = time.time() + SEND_SECONDS  # 速度指令送到這個時刻為止
     last_send = 0  # 上次送速度指令的時刻
     mode = None  # 目前的 custom_mode
-    last_north = None  # 上次印出的北向距離（取整到 5 m），公尺
+    last_north = None  # 上次印出的北向距離（離 EKF 原點，取整到 5 m），公尺
     while time.time() < end:
         now = time.time()
         if mode in (None, GUIDED) and now < send_until and now - last_send >= 0.1:
@@ -134,5 +148,4 @@ finally:
     if KEEP:
         log(f"keep：不還原參數，圍欄維持啟用；原始值是 {originals}，截圖後請自行設回")
     else:
-        for name, value in originals.items():
-            set_param(name, value)
+        restore(originals)

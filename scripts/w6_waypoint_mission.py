@@ -19,8 +19,14 @@ GUIDED = 4  # ArduCopter 的 GUIDED 模式編號
 TIMEOUT = 300  # 任務最多等幾秒
 ACCEPT_M = 3  # 驗收：落地點離 Home 的水平距離上限，公尺
 # 安全參數：圓柱圍欄（半徑 50 m、高度上限 20 m，越界 RTL）＋低電量 RTL
-SAFETY = {"FENCE_ENABLE": 1, "FENCE_TYPE": 3, "FENCE_ACTION": 1, "FENCE_RADIUS": 50, "FENCE_ALT_MAX": 20,
-          "BATT_FS_LOW_ACT": 2}
+SAFETY = {
+    "FENCE_ENABLE": 1,  # 1 = 啟用圍欄
+    "FENCE_TYPE": 3,  # bitmask：1 = 高度上限、2 = 以 Home 為圓心的圓；3 = 兩個都開
+    "FENCE_ACTION": 1,  # 越界動作：1 = RTL（不行就 LAND）
+    "FENCE_RADIUS": 50,  # 圍欄半徑，公尺
+    "FENCE_ALT_MAX": 20,  # 圍欄高度上限，公尺
+    "BATT_FS_LOW_ACT": 2,  # 低電量動作：2 = RTL
+}
 
 T = mavutil.mavlink  # T：MAVLink 常數的命名空間，只為了縮短下面的名稱
 # m：MAVLink 連線；m.mav.*_send 送出訊息，m.recv_match 接收訊息
@@ -170,6 +176,10 @@ try:
     print(f"耗時 {duration:.0f} 秒；到達項目 {reached}；最遠離 Home {max_dist:.1f} m；落地點離 Home {land_dist:.1f} m")
     print("結果：" + ("通過" if ok else "未通過"))
 finally:
+    failed = []  # 還原失敗的參數名稱
     for name, value in originals.items():
-        set_param(name, value)
-    log("參數已還原")
+        try:
+            set_param(name, value)
+        except SystemExit:
+            failed.append(name)
+    log(f"警告：這些參數沒有還原成功，請手動檢查：{failed}" if failed else "參數已還原")

@@ -45,7 +45,7 @@
 ## 實作
 
 1. pymavlink 上傳一個正方形任務（起飛 → 四個航點 → RTL），切 AUTO 執行並觀察進度（`MISSION_CURRENT`、`MISSION_ITEM_REACHED`）（腳本：[`scripts/w6_mission_square.py`](../../appendix/scripts/w6_mission_square.md)）
-2. 觀察任務協定：只送 `MISSION_COUNT` 不回應會怎樣？（逾時與重送）
+2. 觀察任務協定：只送 `MISSION_COUNT` 不回應會怎樣？（逾時與重送）（腳本：[`scripts/w6_mission_timeout.py`](../../appendix/scripts/w6_mission_timeout.md)）
 3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作（腳本：[`scripts/w6_geofence.py`](../../appendix/scripts/w6_geofence.md)）
 4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL（腳本：[`scripts/w6_failsafe_battery.py`](../../appendix/scripts/w6_failsafe_battery.md)，觸發低電量）
 5. （選做）用 MAVSDK 的 `mission` 外掛重做實作 1，比較兩者
@@ -64,6 +64,15 @@
   - 起飛（第 1 項）沒有座標，QGC 不畫點；第 5 項就在 Home 上，與 Home 圖示重疊，所以只看到 2、3、4 三個圓點
   - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
   - 飛機落地後機頭朝西（羅盤 270°）
+
+### 實作 2：任務協定逾時與重送
+
+腳本：[`scripts/w6_mission_timeout.py`](../../appendix/scripts/w6_mission_timeout.md)。送 `MISSION_COUNT = 3` 之後完全不回應。
+
+- **重送**：飛控每 1 秒重送一次 `MISSION_REQUEST seq=0`，共 8 次（0–7 秒）。
+- **放棄**：第 8 秒送 `MISSION_ACK type=15`（`OPERATION_CANCELLED`）與 `STATUSTEXT：Mission upload timeout`，整個上傳作廢。
+- **遲到的回應**：逾時後才回 `MISSION_ITEM_INT seq=0`，飛控回 `MISSION_ACK type=1`（`ERROR`），不會接受。
+- **意義**：上傳是「飛控主動要、你被動回」，你這邊停了，飛控也不會永遠等；寫程式時收到 `MISSION_ACK` 的 type 不是 0 就得從 `MISSION_COUNT` 重來。
 
 ### 實作 3：圓柱 geofence
 

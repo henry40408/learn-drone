@@ -73,6 +73,9 @@
 - **怎麼觸發**：SITL 電壓約 12.6 V，把 `BATT_LOW_VOLT` 調到 13.6 V、`BATT_LOW_TIMER` 調到 2 秒（預設 10 秒），不需要等電池真的放電。
 - **時間軸**（起點 = 飛到北 30 m、改完參數）：約 2.2 秒後飛控送出 `Battery 1 is low 12.60V used 914 mAh` 與 `Battery Failsafe`，模式從 GUIDED 變 RTL；之後腳本沒有送任何指令，約 43 秒後落地、`Disarming motors`。與 `BATT_LOW_TIMER = 2` 吻合。
 - **要還原參數**：腳本結尾用 `finally` 還原三個參數，否則下次起飛就帶著 13.6 V 的門檻，一 arm 就觸發 failsafe。
+- **failsafe 會鎖住**：參數還原、飛機也落地了，QGC 仍顯示「Not Ready」與 `PreArm: Battery failsafe`，arm 被拒絕（`Arm: Battery failsafe`，COMMAND_ACK result 4）。要重啟飛控才解除（SITL 用 `MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN`，param1 = 1）；重啟後 `Accels inconsistent`、`waiting for home` 等開機檢查會暫時出現，等 EKF 準備好。
+
+![QGC Fly 視圖：飛機落在 Home 上，左上角顯示「Not Ready」與 RTL 模式，畫面中央跳出「PreArm: Battery failsafe」；紅線是從北邊飛回 Home 的 RTL 軌跡，右下角顯示飛行時間 1 分 01 秒、飛行距離 40.8 m](images/qgc-battery-failsafe.png)
 
 ## 卡在哪
 

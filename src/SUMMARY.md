@@ -37,3 +37,6 @@
   - [`w4_request_message.py`](appendix/scripts/w4_request_message.md)
   - [`w4_telemetry.py`](appendix/scripts/w4_telemetry.md)
   - [`w4_two_ports.py`](appendix/scripts/w4_two_ports.md)
+  - [`w5_guided_basic.py`](appendix/scripts/w5_guided_basic.md)
+  - [`w5_mavsdk_basic.py`](appendix/scripts/w5_mavsdk_basic.md)
+  - [`w5_velocity_square.py`](appendix/scripts/w5_velocity_square.md)

@@ -7,12 +7,12 @@
 1. **任務是一份「清單」存在飛控裡**：用 AUTO 模式執行，不是你一直發指令。W5 的 Guided 是「你指揮每一步」，W6 的任務是「先交代好、再放手」。
 2. **上傳任務有固定協定**（MAVLink mission protocol）：
    - 你送 `MISSION_COUNT`（共幾項）
-   - 飛控逐項回 `MISSION_REQUEST_INT`（要第幾項）
+   - 飛控逐項回 `MISSION_REQUEST_INT`（要第幾項；SITL 實測回的是舊版 `MISSION_REQUEST`，實作 1 再確認該回哪種）
    - 你回 `MISSION_ITEM_INT`（該項內容）
    - 全部收完，飛控回 `MISSION_ACK`
    - 跟 W4 的 `COMMAND_LONG` 不同：這是**飛控主動來要**，你被動回應
-3. **任務項目 = 指令 + 參數 + 座標**：`NAV_TAKEOFF`、`NAV_WAYPOINT`、`NAV_RETURN_TO_LAUNCH`、`NAV_LAND` 等；第 0 項在 ArduPilot 是 home，不能當航點用（需查文件確認細節）。
-4. **航點之間會減速轉彎還是順過**：一般航點到達判定看 `WPNAV_RADIUS`；spline 航點（`NAV_SPLINE_WAYPOINT`）才會平滑過彎。這是 W5 速度控制轉角減速的答案。
+3. **任務項目 = 指令 + 參數 + 座標**：`NAV_TAKEOFF`、`NAV_WAYPOINT`、`NAV_RETURN_TO_LAUNCH`、`NAV_LAND` 等；第 0 項在 ArduPilot 是 home，不能當航點用（需查文件確認細節）。數量上限取決於飛控的儲存空間：SITL 實測 `MISSION_COUNT` 650 可以、651 起回 `MISSION_ACK` type 4（`NO_SPACE`）。
+4. **航點之間會減速轉彎還是順過**：一般航點到達判定看 `WP_RADIUS`（速度 `WP_SPD`、加速度 `WP_ACCEL`、轉角加速度 `WP_ACC_CNR`）；spline 航點（`NAV_SPLINE_WAYPOINT`）才會平滑過彎。這是 W5 速度控制轉角減速的答案。
 5. **Geofence（地理圍欄）**：用一組 `FENCE_*` 參數設定圓柱範圍（半徑、高度上限）與越界動作（RTL、降落…）；越界時飛控自己處理，不靠你的程式。
 6. **Failsafe（故障保護）**：遙控器斷線、地面站斷線、電池低電量、EKF 失效等情況各有參數決定動作，常見是 RTL 或 LAND。
 7. **RTL（Return To Launch）**：回到起飛點上空（先爬到 `RTL_ALT`），再降落；也是多數 failsafe 的預設動作。

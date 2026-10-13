@@ -63,7 +63,7 @@
 
 - **要持續發送**：腳本以 10 Hz 送。`timeout` 模式停止發送後，飛機**繼續以 2 m/s 飛了約 3.5 秒**才停（多滑行約 7 m），符合 `GUID_TIMEOUT` 預設 3 秒。
 - **轉角會減速**：每換一邊地速掉到約 0.5 m/s 再回到 2 m/s，因為指令從 (2, 0) 直接跳到 (0, 2)，飛控受加速度上限限制。正方形終點與起點偏差約 1 m。
-- **想不減速**：把速度向量的方向逐步旋轉，或放寬加速度參數（可能是 `WPNAV_ACCEL`，沒有驗證）；更合適的是 W6 的任務與 spline 航點。
+- **想不減速**：把速度向量的方向逐步旋轉，或放寬加速度參數（任務模式的是 `WP_ACCEL`、轉角加速度是 `WP_ACC_CNR`，見 ArduPilot 文件；Guided 速度模式用哪個沒有驗證）；更合適的是 W6 的任務與 spline 航點。
 - **`type_mask` 的位元值不要手算**：一開始寫的 `0b0000_1111_1111_1000` 多設了 bit 9（`FORCE_SET`），改成用 `POSITION_TARGET_TYPEMASK_*_IGNORE` 常數組合才精確。
 
 ### 實作 3：MAVSDK-Python 4.0
@@ -91,13 +91,13 @@
 - **goto 馬上「完成」**：目標是相對 EKF 原點的 (20, 20)，連續多次不重啟 SITL 時，飛機降落點已經在 (20, 20)，所以一開始就在目標上。要重現飛行過程需重啟 SITL。
 - **`type_mask` 的位元寫錯**：手算的值多了 `FORCE_SET`，實測雖然能飛，但不精確。
 - **沒解開的疑問**：
-  - 速度模式的加速度上限到底是哪個參數（`WPNAV_ACCEL`？）。
+  - Guided 速度模式的加速度上限到底是哪個參數（任務模式是 `WP_ACCEL`，這個沒驗證；原本猜的 `WPNAV_ACCEL` 是舊版名稱）。
   - MAVSDK 的 `offboard` 速度控制在 ArduPilot 上能不能用（沒測）。
   - 實作 4（arm 被拒絕的 `PreArm` 原因）沒做，只在實作 1 碰到兩種。
 
 ## 下週問題
 
 - W6 上傳航點任務：MAVLink 的任務協定（`MISSION_COUNT`、`MISSION_REQUEST_INT`、`MISSION_ACK`）流程是什麼？跟 MAVSDK 的 `mission` 外掛差多少？
-- 任務模式能不能不減速過彎（spline 航點、`WPNAV_RADIUS`）？
+- 任務模式能不能不減速過彎（spline 航點、`WP_RADIUS`）？
 - geofence 與 failsafe（RTL、電池、斷線）各自怎麼設定、怎麼觸發？
 - 同時開 pymavlink 與 MAVSDK 時，埠要怎麼分（MAVSDK 搶 14550，QGC 也要用）？

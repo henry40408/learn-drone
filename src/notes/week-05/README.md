@@ -42,6 +42,8 @@
 
 ### 實作 1：pymavlink 基本流程
 
+![QGC Fly 視圖：紅線是 goto 的軌跡，從綠色 H（Home）筆直飛向東北方；右下角顯示離 Home 28.6 m、飛行距離 28.8 m、飛行時間 36 秒、機頭 45°](images/qgc-goto.png)
+
 流程是「切 GUIDED → arm → takeoff → goto → LAND」，每步都等條件成立：
 
 | 步驟 | 送什麼 | 怎麼確認完成 |
@@ -56,14 +58,17 @@
 - **goto 沒有 ACK**：`SET_POSITION_TARGET_*` 是目標訊息不是指令，送出去就沒下文，到沒到要自己看位置。
 - **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測在 `sitl.sh` 的輸出裡看到 `Arm: Throttle (RC3) is not neutral`；腳本本身沒有印 `STATUSTEXT`），ACK 本身只說 `FAILED`。
 - **QGC 會干擾**：QGC 的虛擬搖桿開著時，油門不在中位，arm 一直被拒絕；關掉虛擬搖桿後 1 秒就 arm 成功。
+- **goto 是直線飛過去**：軌跡是 Home 到目標的一條直線（對照 W6 任務的圓角路徑），落地點離 Home 28.6 m（QGC 左下），與 √(20² + 20²) ≈ 28.3 m 大致吻合，約差 0.3 m；飛行距離顯示 28.8 m（QGC 右下，水平累計）。
 
 ### 實作 2：速度控制
+
+![QGC Fly 視圖：紅線是速度控制飛出的正方形，四個角略呈圓角；綠色 H 在左下角，機身落在 Home 附近；右下角顯示離 Home 0.9 m、飛行距離 74.9 m、飛行時間 1 分 13 秒](images/qgc-velocity-square.png)
 
 `SET_POSITION_TARGET_LOCAL_NED` 的 `type_mask` 決定哪些欄位有效：用速度就忽略位置、加速度、yaw、yaw 速率。座標系 local NED：x 北、y 東、z 向下（往上要給負的）。
 
 - **要持續發送**：腳本以 10 Hz 送。`timeout` 模式停止發送後，飛機**繼續以 2 m/s 飛了約 3.5 秒**才停（多滑行約 7 m），符合 `GUID_TIMEOUT` 預設 3 秒。
 - **轉角會減速**：每換一邊地速掉到約 0.5 m/s 再回到 2 m/s，因為指令從 (2, 0) 直接跳到 (0, 2)，飛控受加速度上限限制。正方形終點與起點偏差約 1 m。
-- **想不減速**：把速度向量的方向逐步旋轉，或放寬加速度參數（可能是 `WPNAV_ACCEL`，沒有驗證）；更合適的是 W6 的任務與 spline 航點。
+- **想不減速**：把速度向量的方向逐步旋轉，或放寬加速度參數（任務模式的是 `WP_ACC`、轉角加速度是 `WP_ACC_CNR`，見 ArduPilot 文件；Guided 速度模式用哪個沒有驗證）；更合適的是 W6 的任務與 spline 航點。
 - **`type_mask` 的位元值不要手算**：一開始寫的 `0b0000_1111_1111_1000` 多設了 bit 9（`FORCE_SET`），改成用 `POSITION_TARGET_TYPEMASK_*_IGNORE` 常數組合才精確。
 
 ### 實作 3：MAVSDK-Python 4.0
@@ -91,13 +96,13 @@
 - **goto 馬上「完成」**：目標是相對 EKF 原點的 (20, 20)，連續多次不重啟 SITL 時，飛機降落點已經在 (20, 20)，所以一開始就在目標上。要重現飛行過程需重啟 SITL。
 - **`type_mask` 的位元寫錯**：手算的值多了 `FORCE_SET`，實測雖然能飛，但不精確。
 - **沒解開的疑問**：
-  - 速度模式的加速度上限到底是哪個參數（`WPNAV_ACCEL`？）。
+  - Guided 速度模式的加速度上限到底是哪個參數（任務模式是 `WP_ACC`，這個沒驗證；原本猜的 `WPNAV_ACCEL` 是舊版名稱）。
   - MAVSDK 的 `offboard` 速度控制在 ArduPilot 上能不能用（沒測）。
   - 實作 4（arm 被拒絕的 `PreArm` 原因）沒做，只在實作 1 碰到兩種。
 
 ## 下週問題
 
 - W6 上傳航點任務：MAVLink 的任務協定（`MISSION_COUNT`、`MISSION_REQUEST_INT`、`MISSION_ACK`）流程是什麼？跟 MAVSDK 的 `mission` 外掛差多少？
-- 任務模式能不能不減速過彎（spline 航點、`WPNAV_RADIUS`）？
+- 任務模式能不能不減速過彎（spline 航點、`WP_RADIUS_M`）？
 - geofence 與 failsafe（RTL、電池、斷線）各自怎麼設定、怎麼觸發？
 - 同時開 pymavlink 與 MAVSDK 時，埠要怎麼分（MAVSDK 搶 14550，QGC 也要用）？

@@ -40,6 +40,61 @@
 
 ## 學到什麼
 
+### 實作 1：pymavlink 基本流程
+
+流程是「切 GUIDED → arm → takeoff → goto → LAND」，每步都等條件成立：
+
+| 步驟 | 送什麼 | 怎麼確認完成 |
+|---|---|---|
+| 切模式 | `SET_MODE`（custom_mode 4） | `HEARTBEAT` 的 `custom_mode` 變成 4 |
+| arm | `COMMAND_LONG` `COMPONENT_ARM_DISARM` | `COMMAND_ACK` result 0；被拒絕是 4（`FAILED`） |
+| takeoff | `COMMAND_LONG` `NAV_TAKEOFF`（param7 = 高度） | ACK 只代表「接受」，要看 `GLOBAL_POSITION_INT.relative_alt` 到 95% |
+| goto | `SET_POSITION_TARGET_LOCAL_NED`（沒有 ACK） | 自己算 `LOCAL_POSITION_NED` 到目標的水平距離 < 1 m |
+| 降落 | `SET_MODE` LAND（編號 9） | `relative_alt` < 0.2 m，落地後飛控自動 disarm |
+
+- **指令的 ACK 只代表「收到」，不代表「做完」**：回答 W4 留下的問題，完成與否要看遙測（高度、距離）。
+- **goto 沒有 ACK**：`SET_POSITION_TARGET_*` 是目標訊息不是指令，送出去就沒下文，到沒到要自己看位置。
+- **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測看過 `Arm: Throttle (RC3) is not neutral`），ACK 本身只說 `FAILED`。
+- **QGC 會干擾**：QGC 的虛擬搖桿開著時，油門不在中位，arm 一直被拒絕；關掉虛擬搖桿後 1 秒就 arm 成功。
+
+### 實作 2：速度控制
+
+`SET_POSITION_TARGET_LOCAL_NED` 的 `type_mask` 決定哪些欄位有效：用速度就忽略位置、加速度、yaw、yaw 速率。座標系 local NED：x 北、y 東、z 向下（往上要給負的）。
+
+- **要持續發送**：腳本以 10 Hz 送。`timeout` 模式停止發送後，飛機**繼續以 2 m/s 飛了約 3.5 秒**才停（多滑行約 7 m），符合 `GUID_TIMEOUT` 預設 3 秒。
+- **轉角會減速**：每換一邊地速掉到約 0.5 m/s 再回到 2 m/s，因為指令從 (2, 0) 直接跳到 (0, 2)，飛控受加速度上限限制。正方形終點與起點偏差約 1 m。
+- **想不減速**：把速度向量的方向逐步旋轉，或放寬加速度參數（可能是 `WPNAV_ACCEL`，沒有驗證）；更合適的是 W6 的任務與 spline 航點。
+- **`type_mask` 的位元值不要手算**：一開始寫的 `0b0000_1111_1111_1000` 多設了 bit 9（`FORCE_SET`），改成用 `POSITION_TARGET_TYPEMASK_*_IGNORE` 常數組合才精確。
+
+### 實作 3：MAVSDK-Python 4.0
+
+同一流程用 MAVSDK 重做，約 34 秒跑完：
+
+| | pymavlink | MAVSDK 4.0 |
+|---|---|---|
+| 風格 | 同步，自己組訊息、等 ACK | `async/await`，一個動作一個呼叫 |
+| 失敗 | 檢查 `ack.result` | 丟 `ActionError` |
+| 切模式 | 自己 `SET_MODE` | `takeoff()` 內部處理 |
+| goto | local NED（公尺） | 經緯度＋海拔 AMSL，要自己換算 |
+| 連線 | `tcp:127.0.0.1:5762`（獨立埠，可與 QGC 並存） | `udpin://0.0.0.0:14550`（與 QGC 搶同一埠） |
+
+- **基本動作 MAVSDK 好寫很多**，但把細節包起來了：看不到 `result=4` 或 `STATUSTEXT`，低階控制（`type_mask`、任意訊息、`SET_MESSAGE_INTERVAL`）也較弱。
+- **4.0 與 3.x 不同**：內嵌原生函式庫、不再需要 `mavsdk_server` 與 `grpcio`，import 路徑是 `mavsdk.asyncio`；`udp://` 已棄用，要用 `udpin://`。
+- **JS 類比**：pymavlink 像直接寫 `fetch` 加手動處理回應，MAVSDK 像一層有型別的 SDK client。
+
 ## 卡在哪
 
+- **arm 一直被拒絕**：先是 EKF 還沒好（等約 20 秒），後來是 QGC 虛擬搖桿讓 RC3 不在中位；`COMMAND_ACK` 只說 `FAILED`，原因要看 `STATUSTEXT`。
+- **MAVSDK 連不上**：QGC 還開著會搶 14550，要先關掉；用 `udp://` 會有棄用警告。
+- **`type_mask` 的位元寫錯**：手算的值多了 `FORCE_SET`，實測雖然能飛，但不精確。
+- **沒解開的疑問**：
+  - 速度模式的加速度上限到底是哪個參數（`WPNAV_ACCEL`？）。
+  - MAVSDK 的 `offboard` 速度控制在 ArduPilot 上能不能用（沒測）。
+  - 實作 4（arm 被拒絕的 `PreArm` 原因）沒做，只在實作 1 碰到兩種。
+
 ## 下週問題
+
+- W6 上傳航點任務：MAVLink 的任務協定（`MISSION_COUNT`、`MISSION_REQUEST_INT`、`MISSION_ACK`）流程是什麼？跟 MAVSDK 的 `mission` 外掛差多少？
+- 任務模式能不能不減速過彎（spline 航點、`WPNAV_RADIUS`）？
+- geofence 與 failsafe（RTL、電池、斷線）各自怎麼設定、怎麼觸發？
+- 同時開 pymavlink 與 MAVSDK 時，埠要怎麼分（MAVSDK 搶 14550，QGC 也要用）？

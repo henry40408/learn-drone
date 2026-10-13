@@ -102,4 +102,22 @@
 
 ## 卡在哪
 
+- **在地面切 AUTO 不會起飛**：只看到 `Mission: 1 Takeoff`，約 10 秒後因為沒離地而自動 disarm；要再送 `MAV_CMD_MISSION_START`。
+- **goto 在圍欄外被默默拒絕**：飛機不動、沒有任何回應，一度以為是腳本壞掉；要改用速度指令才飛得出去。
+- **圍欄一直沒觸發**：`AVOID_ENABLE` 預設就把速度指令擋在圍欄內 2 m；加上 Home 每次 arm 都重設，連續多次不重啟 SITL 時圓心跟著移動。要重現需關掉 `AVOID_ENABLE` 並重啟 SITL。
+- **failsafe 觸發後會鎖住**：參數還原、落地後仍 `PreArm: Battery failsafe`，要重啟飛控才解除。
+- **重啟飛控後剛開機**：`Need Position Estimate`、`Accels inconsistent`、`waiting for home` 都只是 EKF 還沒好，等約 20 秒。
+- **QGC 的圍欄圓只在 `FENCE_ENABLE = 1` 時顯示**：腳本結束還原參數後圓就消失，截圖要用 `keep` 選項。
+- **沒解開的疑問**：
+  - 軌跡的圓角到底由 `WP_RADIUS` 還是 `WP_ACC_CNR` 決定（只是推測，沒有改參數驗證）。
+  - SITL 任務容量 650 是否含 home（`MISSION_COUNT` 650 可、651 起 `NO_SPACE`）。
+  - `NAV_SPLINE_WAYPOINT` 實際軌跡長怎樣（沒做）。
+  - 只觸發了低電量 failsafe；遙控器斷線、地面站斷線（`FS_GCS_ENABLE`）、EKF 失效沒測。
+  - 實作 5（MAVSDK mission）略過，沒有與 pymavlink 比較。
+
 ## 下週問題
+
+- W7 Gazebo 在 arm64 macOS 上穩不穩，要用 Docker 還是 Linux VM？ArduPilot 與 Gazebo 怎麼串接（ArduPilot Gazebo plugin、SITL 的 JSON 介面）？
+- 模擬裡怎麼加攝影機與距離感測器，資料怎麼送出來（Gazebo transport、ROS 2 bridge）？
+- 換成 Gazebo 之後，W5、W6 的 pymavlink 腳本還能不能直接跑（連線埠、`HOME`、物理與 SITL 內建模型的差異）？
+- 圍欄與 failsafe 的行為在 Gazebo 裡會不會不同（例如電池模型）？

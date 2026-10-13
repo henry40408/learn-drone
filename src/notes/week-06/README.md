@@ -69,6 +69,9 @@
 
 腳本：[`scripts/w6_geofence.py`](../../appendix/scripts/w6_geofence.md)。設 `FENCE_ENABLE = 1`、`FENCE_TYPE = 3`（高度上限 + 圓）、`FENCE_ACTION = 1`（RTL，不行就 LAND）、`FENCE_RADIUS = 30`（最小值）、`FENCE_ALT_MAX = 20`；起飛到 10 m 後用速度指令往北 3 m/s。
 
+![QGC Fly 視圖：橘色圓是半徑 30 m 的圓柱圍欄，圓心在 Home；紅線從 Home 往北直線飛出，在圍欄邊緣稍微越界後原路飛回；右下角顯示飛行時間 1 分 06 秒、飛行距離 62.9 m](images/qgc-geofence.png)
+
+- **QGC 才畫得出圍欄**：圓只在 `FENCE_ENABLE = 1` 時顯示；腳本結束還原參數後圓就消失，截圖要用 `keep` 選項（結束不還原）。
 - **越界**：北約 28–30 m 時飛控送出 `Circle fence breached`，GUIDED 變 RTL；慣性讓飛機衝到北約 32.5 m，之後先爬到 15 m（`RTL_ALT`）再飛回 Home，回到圍欄內時送出 `Fence breach cleared`，約 45 秒後落地。
 - **三個沒預料到的地方**（一開始都沒觸發越界）：
   1. **Guided 的 goto 目標在圍欄外會被直接拒絕**：飛機完全不動、沒有任何回應。要飛出去只能用速度指令。

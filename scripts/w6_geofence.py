@@ -8,11 +8,13 @@
 - Guided 的 goto 目標若在圍欄外會被飛控直接拒絕（飛機不動），所以改用速度指令往北飛。
 - Home 每次 arm 都會重設，圍欄圓心跟著動；要從起點（北 0 m）起飛才會在北 30 m 越界。
 """
+import sys
 import time
 
 from pymavlink import mavutil
 
 CONN = "tcp:127.0.0.1:5762"
+KEEP = "keep" in sys.argv[1:]  # 帶 keep 時結束不還原參數：QGC 只在圍欄啟用時才畫圓，要截圖用
 ALT = 10  # 起飛與飛行高度，公尺（相對起飛點）
 SPEED = 3  # 往北飛的速度，m/s
 SEND_SECONDS = 40  # 速度指令最多送幾秒（飛機越界後飛控接管，模式不再是 GUIDED 就停送）
@@ -129,5 +131,8 @@ try:
     else:
         raise SystemExit("逾時")
 finally:
-    for name, value in originals.items():
-        set_param(name, value)
+    if KEEP:
+        log(f"keep：不還原參數，圍欄維持啟用；原始值是 {originals}，截圖後請自行設回")
+    else:
+        for name, value in originals.items():
+            set_param(name, value)

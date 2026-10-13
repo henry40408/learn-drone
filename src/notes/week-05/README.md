@@ -42,6 +42,8 @@
 
 ### 實作 1：pymavlink 基本流程
 
+![QGC Fly 視圖：紅線是 goto 的軌跡，從綠色 H（Home）筆直飛向東北方；右下角顯示離 Home 28.8 m、飛行時間 36 秒、機頭 45°](images/qgc-goto.png)
+
 流程是「切 GUIDED → arm → takeoff → goto → LAND」，每步都等條件成立：
 
 | 步驟 | 送什麼 | 怎麼確認完成 |
@@ -56,6 +58,7 @@
 - **goto 沒有 ACK**：`SET_POSITION_TARGET_*` 是目標訊息不是指令，送出去就沒下文，到沒到要自己看位置。
 - **arm 會被拒絕**：SITL 剛開機 EKF 還沒好時，約 20 秒內都 `result=4`，要重試。拒絕原因在 `STATUSTEXT`（實測在 `sitl.sh` 的輸出裡看到 `Arm: Throttle (RC3) is not neutral`；腳本本身沒有印 `STATUSTEXT`），ACK 本身只說 `FAILED`。
 - **QGC 會干擾**：QGC 的虛擬搖桿開著時，油門不在中位，arm 一直被拒絕；關掉虛擬搖桿後 1 秒就 arm 成功。
+- **goto 是直線飛過去**：軌跡是 Home 到目標的一條直線（對照 W6 任務的圓角路徑），QGC 顯示離 Home 28.8 m，與 √(20² + 20²) ≈ 28.3 m 大致吻合（落地時有約半公尺的偏差）。
 
 ### 實作 2：速度控制
 

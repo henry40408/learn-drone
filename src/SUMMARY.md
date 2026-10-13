@@ -40,4 +40,5 @@
   - [`w5_guided_basic.py`](appendix/scripts/w5_guided_basic.md)
   - [`w5_mavsdk_basic.py`](appendix/scripts/w5_mavsdk_basic.md)
   - [`w5_velocity_square.py`](appendix/scripts/w5_velocity_square.md)
+  - [`w6_failsafe_battery.py`](appendix/scripts/w6_failsafe_battery.md)
   - [`w6_mission_square.py`](appendix/scripts/w6_mission_square.md)

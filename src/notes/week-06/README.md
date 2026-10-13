@@ -47,7 +47,7 @@
 1. pymavlink 上傳一個正方形任務（起飛 → 四個航點 → RTL），切 AUTO 執行並觀察進度（`MISSION_CURRENT`、`MISSION_ITEM_REACHED`）（腳本：[`scripts/w6_mission_square.py`](../../appendix/scripts/w6_mission_square.md)）
 2. 觀察任務協定：只送 `MISSION_COUNT` 不回應會怎樣？（逾時與重送）
 3. 設圓柱 geofence，用 Guided 往外飛，觀察越界時的動作
-4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL
+4. 觸發一種 failsafe（例如地面站斷線或電池低電量），確認飛控自己 RTL（腳本：[`scripts/w6_failsafe_battery.py`](../../appendix/scripts/w6_failsafe_battery.md)，觸發低電量）
 5. （選做）用 MAVSDK 的 `mission` 外掛重做實作 1，比較兩者
 6. 專案 1：`projects/waypoint-mission`，整合以上做成「自動飛正方形並回家」
 
@@ -64,6 +64,15 @@
   - 起飛（第 1 項）沒有座標，QGC 不畫點；第 5 項就在 Home 上，與 Home 圖示重疊，所以只看到 2、3、4 三個圓點
   - 軌跡的角是**圓角**，飛機沒有飛到航點上才轉彎，而是提早切角（推測與 `WP_RADIUS`、轉角加速度 `WP_ACC_CNR` 有關，沒有驗證）；與 W5 用速度指令時「先減速再轉」的直角完全不同
   - 飛機落地後機頭朝西（羅盤 270°）
+
+### 實作 4：觸發低電量 failsafe
+
+腳本：[`scripts/w6_failsafe_battery.py`](../../appendix/scripts/w6_failsafe_battery.md)。
+
+- **預設不會動作**：`BATT_FS_LOW_ACT` 預設 0（無），電壓低於 `BATT_LOW_VOLT`（預設 10.5 V）時只會發出警告，不會 RTL；要自己設成 2（RTL）才會自保。
+- **怎麼觸發**：SITL 電壓約 12.6 V，把 `BATT_LOW_VOLT` 調到 13.6 V、`BATT_LOW_TIMER` 調到 2 秒（預設 10 秒），不需要等電池真的放電。
+- **時間軸**（起點 = 飛到北 30 m、改完參數）：約 2.2 秒後飛控送出 `Battery 1 is low 12.60V used 914 mAh` 與 `Battery Failsafe`，模式從 GUIDED 變 RTL；之後腳本沒有送任何指令，約 43 秒後落地、`Disarming motors`。與 `BATT_LOW_TIMER = 2` 吻合。
+- **要還原參數**：腳本結尾用 `finally` 還原三個參數，否則下次起飛就帶著 13.6 V 的門檻，一 arm 就觸發 failsafe。
 
 ## 卡在哪
 

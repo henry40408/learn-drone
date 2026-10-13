@@ -35,7 +35,7 @@
 
 1. pymavlink 完成「GUIDED → arm → takeoff 10 m → goto 北 20 m、東 20 m → 降落」（腳本：[`scripts/w5_guided_basic.py`](../../appendix/scripts/w5_guided_basic.md)）
 2. 用速度控制飛一個正方形，並觀察停止發送速度指令後飛機的反應（腳本：[`scripts/w5_velocity_square.py`](../../appendix/scripts/w5_velocity_square.md)；加參數 `timeout` 做後者）
-3. 用 MAVSDK-Python 重做實作 1，比較兩者的寫法（PLAN 要求兩種各做一次）
+3. 用 MAVSDK-Python 重做實作 1，比較兩者的寫法（PLAN 要求兩種各做一次）（腳本：[`scripts/w5_mavsdk_basic.py`](../../appendix/scripts/w5_mavsdk_basic.md)；要先關掉 QGC）
 4. （額外）故意在 arm 前不等 EKF，觀察被拒絕的原因
 
 ## 學到什麼
